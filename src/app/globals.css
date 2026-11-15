@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #fbfbf8;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-muted: #f4f5f1;
+  --border-subtle: #e6e8e2;
+  --border-medium: #d4d7cf;
+  
+  --forest-dark: #1b4332;
+  --forest-primary: #2d6a4f;
+  --forest-light: #40916c;
+  --sage-primary: #52b788;
+  --sage-muted: #74c69d;
+  --sage-tint: #eaf7ee;
+  
+  --charcoal-dark: #191c1f;
+  --charcoal-primary: #2a2f35;
+  --charcoal-muted: #5a626a;
+  --charcoal-light: #88929c;
+
+  --accent-amber: #d97706;
+  --accent-amber-bg: #fffbeb;
+  --accent-blue: #0284c7;
+  --accent-blue-bg: #f0f9ff;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--charcoal-dark);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom delicate scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d7cf;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #aab0a5;
+}
+
+/* Maplibre custom pin styling */
+.arachnova-farm-pin {
+  width: 14px;
+  height: 14px;
+  background-color: #2d6a4f;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.arachnova-farm-pin:hover {
+  transform: scale(1.3);
+  background-color: #1b4332;
+}
+
+.arachnova-farm-pin-active {
+  background-color: #d97706 !important;
+  width: 18px !important;
+  height: 18px !important;
+  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.3) !important;
+}
