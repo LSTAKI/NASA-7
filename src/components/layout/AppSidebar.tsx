@@ -55,26 +55,26 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
       {/* Sidebar Drawer */}
       <aside
         className={cn(
-          'fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#1b4332] text-white flex flex-col justify-between transition-transform duration-200 ease-in-out lg:static lg:translate-x-0',
+          'fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#18392b] text-white flex flex-col justify-between transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 border-r border-[#244b39]/40 shadow-xl lg:shadow-none',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Header / Brand */}
-        <div className="p-5 border-b border-[#2d6a4f]/60">
+        <div className="p-5 border-b border-[#244b39]/50">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-all">
-                <Sprout className="w-6 h-6 text-[#74c69d]" />
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/15 group-hover:bg-white/20 transition-all shadow-xs">
+                <Sprout className="w-6 h-6 text-[#a8d5ba]" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold tracking-tight text-lg leading-tight flex items-center gap-1.5">
+                <span className="font-bold tracking-tight text-lg leading-tight flex items-center gap-1.5 text-white">
                   ARACHNOVA
-                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-[#52b788]/20 text-[#95d5b2] border border-[#52b788]/30">
+                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-md bg-[#528c70]/30 text-[#d4eedb] border border-[#73aa8f]/30">
                     v1.0
                   </span>
                 </span>
-                <span className="text-[11px] text-[#95d5b2] font-normal tracking-wide">
-                  Agricultural Intelligence
+                <span className="text-[11px] text-[#a8d5ba] font-medium tracking-wide">
+                  Global Agricultural Platform
                 </span>
               </div>
             </Link>
@@ -88,31 +88,31 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           </div>
 
           {/* Quick Active Farm Switcher in Sidebar */}
-          <div className="mt-5 bg-[#2d6a4f]/50 rounded-lg p-2.5 border border-[#52b788]/20">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] uppercase font-semibold text-[#95d5b2] tracking-wider">
+          <div className="mt-5 bg-[#224836]/60 rounded-xl p-3 border border-[#386b4f]/40 shadow-2xs">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] uppercase font-bold text-[#a8d5ba] tracking-wider">
                 Active Farm Focus
               </span>
-              <span className="text-[10px] text-white/60">
+              <span className="text-[10px] text-white/70 font-medium">
                 {activeFarm ? `${activeFarm.areaHectares} ha` : ''}
               </span>
             </div>
             <select
               value={activeFarm?.id || ''}
               onChange={e => setActiveFarmId(e.target.value)}
-              className="w-full bg-[#1b4332] text-xs text-white border border-[#40916c] rounded-md px-2 py-1.5 font-medium focus:outline-none focus:ring-1 focus:ring-[#74c69d] cursor-pointer"
+              className="w-full bg-[#153225] text-xs text-white border border-[#386b4f] rounded-lg px-2.5 py-1.5 font-medium focus:outline-none focus:ring-2 focus:ring-[#73aa8f] cursor-pointer"
             >
               {farms.map(f => (
-                <option key={f.id} value={f.id} className="bg-[#1b4332] text-white">
+                <option key={f.id} value={f.id} className="bg-[#18392b] text-white">
                   {f.name} ({f.country})
                 </option>
               ))}
             </select>
-            <div className="mt-1.5 flex items-center justify-between text-[11px] text-[#95d5b2]/80">
+            <div className="mt-2 flex items-center justify-between text-[11px] text-[#d4eedb]/80">
               <span className="font-mono text-[10px]">
                 {activeFarm ? `${activeFarm.location.latitude.toFixed(2)}°, ${activeFarm.location.longitude.toFixed(2)}°` : ''}
               </span>
-              <span className="capitalize">{activeFarm?.irrigationType || 'rainfed'}</span>
+              <span className="capitalize font-medium text-[#a8d5ba]">{activeFarm?.irrigationType || 'rainfed'}</span>
             </div>
           </div>
         </div>
@@ -130,21 +130,21 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
                   if (window.innerWidth < 1024) onClose();
                 }}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group',
+                  'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all group',
                   isActive
-                    ? 'bg-[#2d6a4f] text-white shadow-xs font-semibold'
-                    : 'text-[#d8f3dc]/80 hover:bg-[#2d6a4f]/40 hover:text-white'
+                    ? 'bg-[#286043] text-white shadow-xs font-semibold'
+                    : 'text-[#d4eedb]/85 hover:bg-[#204a35] hover:text-white'
                 )}
               >
                 <Icon
                   className={cn(
                     'w-5 h-5 transition-colors',
-                    isActive ? 'text-[#74c69d]' : 'text-[#95d5b2]/70 group-hover:text-[#74c69d]'
+                    isActive ? 'text-[#a8d5ba]' : 'text-[#73aa8f]/80 group-hover:text-[#a8d5ba]'
                   )}
                 />
                 <span className="flex-1 truncate">{item.label}</span>
                 {item.href === '/rotation-advisor' && (
-                  <Badge variant="sage" size="sm" className="bg-[#52b788]/20 text-[#95d5b2] border-transparent text-[10px]">
+                  <Badge variant="sage" size="sm" className="bg-[#528c70]/30 text-[#d4eedb] border-transparent text-[10px] font-semibold">
                     AI
                   </Badge>
                 )}
@@ -154,13 +154,13 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
         </nav>
 
         {/* Footer Attribution / System Status */}
-        <div className="p-4 border-t border-[#2d6a4f]/60 bg-[#16382a]/50 text-xs">
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="w-4 h-4 text-[#74c69d]" />
-            <span className="text-[11px] font-medium text-white/90">Earth Observation Hybrid</span>
+        <div className="p-4 border-t border-[#244b39]/50 bg-[#132c21]/50 text-xs">
+          <div className="flex items-center gap-2 mb-1.5">
+            <ShieldCheck className="w-4 h-4 text-[#a8d5ba]" />
+            <span className="text-[11px] font-semibold text-white/95">Earth Observation Hybrid</span>
           </div>
-          <p className="text-[10px] text-[#95d5b2]/70 leading-relaxed">
-            NASA POWER &bull; Open-Meteo ERA5 &bull; ISRIC SoilGrids 250m. Real API proxies active.
+          <p className="text-[10px] text-[#a8d5ba]/80 leading-relaxed">
+            NASA POWER &bull; Open-Meteo ERA5 &bull; ISRIC SoilGrids 250m.
           </p>
         </div>
       </aside>

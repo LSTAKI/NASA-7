@@ -1,29 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #fbfbf8;
+  /* Warm cream & off-white backgrounds */
+  --bg-primary: #f9f8f5;
   --bg-surface: #ffffff;
   --bg-card: #ffffff;
-  --bg-muted: #f4f5f1;
-  --border-subtle: #e6e8e2;
-  --border-medium: #d4d7cf;
+  --bg-muted: #f3efe9;
+  --border-subtle: #e8e5dc;
+  --border-medium: #dcd8ce;
+  --border-focus: #2e7d32;
   
-  --forest-dark: #1b4332;
-  --forest-primary: #2d6a4f;
-  --forest-light: #40916c;
-  --sage-primary: #52b788;
-  --sage-muted: #74c69d;
-  --sage-tint: #eaf7ee;
+  /* Natural Leaf & Forest Greens */
+  --leaf-primary: #2e7d32;
+  --leaf-hover: #235e28;
+  --leaf-dark: #18392b;
+  --forest-dark: #18392b;
+  --forest-primary: #286043;
+  --forest-light: #3d7e5d;
   
-  --charcoal-dark: #191c1f;
-  --charcoal-primary: #2a2f35;
-  --charcoal-muted: #5a626a;
-  --charcoal-light: #88929c;
+  /* Soft Sage Greens */
+  --sage-primary: #528c70;
+  --sage-muted: #73aa8f;
+  --sage-tint: #eaf3ee;
+  --sage-border: #c5dfcc;
+  
+  /* Readable Earthy Typography */
+  --charcoal-dark: #1e2420;
+  --charcoal-primary: #333c36;
+  --charcoal-muted: #616d64;
+  --charcoal-light: #8d9890;
 
-  --accent-amber: #d97706;
-  --accent-amber-bg: #fffbeb;
+  /* Muted Harvest Yellow / Gold Accents */
+  --harvest-gold: #d4973b;
+  --harvest-gold-tint: #fef9ee;
+  --harvest-gold-border: #f5deb3;
+  --accent-amber: #d4973b;
+  --accent-amber-bg: #fef9ee;
+  
+  /* Soft Terracotta / Orange Warnings */
+  --warning-orange: #d96b27;
+  --warning-orange-tint: #fff3eb;
+  --warning-orange-border: #fed7c3;
+  
+  /* Sky Blue Accents */
   --accent-blue: #0284c7;
-  --accent-blue-bg: #f0f9ff;
+  --accent-blue-bg: #f0f7ff;
 }
 
 body {
@@ -34,7 +55,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom delicate scrollbars */
+/* Custom warm delicate scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -43,32 +64,32 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d4d7cf;
-  border-radius: 3px;
+  background: #dcd8ce;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #aab0a5;
+  background: #b8b2a4;
 }
 
-/* Maplibre custom pin styling */
+/* MapLibre custom pin styling */
 .arachnova-farm-pin {
   width: 14px;
   height: 14px;
-  background-color: #2d6a4f;
+  background-color: #2e7d32;
   border: 2px solid #ffffff;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 .arachnova-farm-pin:hover {
   transform: scale(1.3);
-  background-color: #1b4332;
+  background-color: #18392b;
 }
 
 .arachnova-farm-pin-active {
-  background-color: #d97706 !important;
+  background-color: #d4973b !important;
   width: 18px !important;
   height: 18px !important;
-  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.3) !important;
+  box-shadow: 0 0 0 4px rgba(212, 151, 59, 0.35) !important;
 }

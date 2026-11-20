@@ -16,20 +16,20 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#2d6a4f] disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
+  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2e7d32] disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
 
   const variantStyles = {
-    primary: 'bg-[#2d6a4f] text-white hover:bg-[#1b4332] shadow-sm',
-    secondary: 'bg-[#eaf7ee] text-[#1b4332] hover:bg-[#d8f3dc] border border-[#b7e4c7]',
-    outline: 'border border-[#d4d7cf] bg-white text-[#2a2f35] hover:bg-[#f4f5f1]',
-    ghost: 'text-[#2a2f35] hover:bg-[#f4f5f1] hover:text-[#1b4332]',
-    danger: 'bg-[#dc2626] text-white hover:bg-[#b91c1c]'
+    primary: 'bg-[#2e7d32] text-white hover:bg-[#235e28] shadow-xs hover:shadow-sm',
+    secondary: 'bg-[#eaf3ee] text-[#18392b] hover:bg-[#d8eadb] border border-[#c5dfcc]',
+    outline: 'border border-[#dcd8ce] bg-white text-[#333c36] hover:bg-[#f9f8f5] hover:border-[#b8b2a4]',
+    ghost: 'text-[#333c36] hover:bg-[#f3efe9] hover:text-[#18392b]',
+    danger: 'bg-[#d96b27] text-white hover:bg-[#c15a1a] shadow-xs'
   };
 
   const sizeStyles = {
-    sm: 'text-xs px-2.5 py-1.5 gap-1.5',
-    md: 'text-sm px-3.5 py-2 gap-2',
-    lg: 'text-base px-5 py-2.5 gap-2.5'
+    sm: 'text-xs px-3 py-1.5 gap-1.5 rounded-lg',
+    md: 'text-sm px-4 py-2 gap-2 rounded-xl',
+    lg: 'text-base px-6 py-2.5 gap-2.5 rounded-xl'
   };
 
   return (

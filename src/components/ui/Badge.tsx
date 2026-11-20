@@ -14,24 +14,24 @@ export function Badge({
   ...props
 }: BadgeProps) {
   const variantStyles = {
-    forest: 'bg-[#1b4332] text-white border-transparent',
-    sage: 'bg-[#eaf7ee] text-[#1b4332] border-[#c7e9d2]',
-    amber: 'bg-[#fffbeb] text-[#92400e] border-[#fde68a]',
-    blue: 'bg-[#f0f9ff] text-[#0369a1] border-[#bae6fd]',
-    charcoal: 'bg-[#f4f5f1] text-[#2a2f35] border-[#d4d7cf]',
-    outline: 'bg-transparent text-[#2a2f35] border-[#d4d7cf]',
-    danger: 'bg-[#fef2f2] text-[#991b1b] border-[#fecaca]'
+    forest: 'bg-[#18392b] text-[#eaf3ee] border-transparent',
+    sage: 'bg-[#eaf3ee] text-[#18392b] border-[#c5dfcc]',
+    amber: 'bg-[#fef9ee] text-[#8c5e14] border-[#f5deb3]',
+    blue: 'bg-[#f0f7ff] text-[#0a58ca] border-[#bae0fd]',
+    charcoal: 'bg-[#f3efe9] text-[#333c36] border-[#dcd8ce]',
+    outline: 'bg-transparent text-[#333c36] border-[#dcd8ce]',
+    danger: 'bg-[#fff3eb] text-[#a63c14] border-[#fed7c3]'
   };
 
   const sizeStyles = {
-    sm: 'text-xs px-2 py-0.5 rounded-md font-medium tracking-tight',
-    md: 'text-xs px-2.5 py-1 rounded-md font-medium tracking-tight'
+    sm: 'text-xs px-2.5 py-0.5 rounded-full font-medium tracking-tight',
+    md: 'text-xs px-3 py-1 rounded-full font-medium tracking-tight'
   };
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 border transition-colors',
+        'inline-flex items-center gap-1 border transition-colors select-none',
         variantStyles[variant],
         sizeStyles[size],
         className

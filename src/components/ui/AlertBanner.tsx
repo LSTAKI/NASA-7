@@ -21,42 +21,42 @@ export function AlertBanner({
 }: AlertBannerProps) {
   const styles = {
     info: {
-      container: 'bg-[#f0f9ff] border-[#bae6fd] text-[#0369a1]',
-      icon: <Info className="w-5 h-5 text-[#0284c7] shrink-0" />
+      container: 'bg-[#f0f7ff] border-[#bae0fd] text-[#0a58ca]',
+      icon: <Info className="w-5 h-5 text-[#0284c7] shrink-0 mt-0.5" />
     },
     warning: {
-      container: 'bg-[#fffbeb] border-[#fde68a] text-[#92400e]',
-      icon: <AlertTriangle className="w-5 h-5 text-[#d97706] shrink-0" />
+      container: 'bg-[#fef9ee] border-[#f5deb3] text-[#8c5e14]',
+      icon: <AlertTriangle className="w-5 h-5 text-[#d4973b] shrink-0 mt-0.5" />
     },
     success: {
-      container: 'bg-[#eaf7ee] border-[#c7e9d2] text-[#1b4332]',
-      icon: <CheckCircle2 className="w-5 h-5 text-[#2d6a4f] shrink-0" />
+      container: 'bg-[#eaf3ee] border-[#c5dfcc] text-[#18392b]',
+      icon: <CheckCircle2 className="w-5 h-5 text-[#2e7d32] shrink-0 mt-0.5" />
     },
     danger: {
-      container: 'bg-[#fef2f2] border-[#fecaca] text-[#991b1b]',
-      icon: <AlertCircle className="w-5 h-5 text-[#dc2626] shrink-0" />
+      container: 'bg-[#fff3eb] border-[#fed7c3] text-[#a63c14]',
+      icon: <AlertCircle className="w-5 h-5 text-[#d96b27] shrink-0 mt-0.5" />
     }
   };
 
   return (
     <div
       className={cn(
-        'flex items-start justify-between gap-3 p-3.5 rounded-lg border text-sm transition-all',
+        'flex items-start justify-between gap-3 p-4 rounded-xl border text-sm transition-all shadow-2xs',
         styles[type].container,
         className
       )}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-3">
         {styles[type].icon}
         <div>
-          {title && <div className="font-semibold text-xs uppercase tracking-wider mb-0.5">{title}</div>}
-          <div className="text-xs leading-relaxed opacity-90">{message}</div>
+          {title && <div className="font-bold text-xs uppercase tracking-wider mb-0.5">{title}</div>}
+          <div className="text-xs leading-relaxed font-normal">{message}</div>
         </div>
       </div>
       {actionText && onAction && (
         <button
           onClick={onAction}
-          className="text-xs font-semibold underline underline-offset-2 hover:opacity-80 shrink-0 ml-2"
+          className="text-xs font-bold underline underline-offset-4 hover:opacity-80 shrink-0 ml-2 cursor-pointer"
         >
           {actionText}
         </button>

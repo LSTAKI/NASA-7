@@ -14,7 +14,7 @@ export function DashboardShell({ children, onRefreshData, isRefreshing = false }
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex bg-[#fbfbf8] text-[#191c1f]">
+    <div className="min-h-screen flex bg-[#f9f8f5] text-[#1e2420]">
       {/* Sidebar Navigation */}
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -25,7 +25,7 @@ export function DashboardShell({ children, onRefreshData, isRefreshing = false }
           onRefreshData={onRefreshData}
           isRefreshing={isRefreshing}
         />
-        <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
           {children}
         </main>
       </div>
