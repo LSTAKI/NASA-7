@@ -30,7 +30,7 @@ export function EnvironmentalOverview({
     );
   }
 
-  // Derive metrics
+  // Derive metrics (preserve 100% of existing calculations)
   const avgTemp = nasaData?.summary.avgTemperature ?? weatherData?.summary.avgTemp ?? 21.4;
   const maxTemp = nasaData?.summary.maxTemperature ?? 28.2;
   const minTemp = nasaData?.summary.minTemperature ?? 14.5;
@@ -41,7 +41,6 @@ export function EnvironmentalOverview({
   const totalEt0 = weatherData?.summary.totalEt0 ?? 54.0;
   
   // Synthetic NDVI estimation based on water balance and solar radiation
-  // Normalized between 0.2 and 0.85
   const waterBalance = totalRain - totalEt0;
   const syntheticNdvi = Number(Math.min(0.85, Math.max(0.25, 0.52 + (waterBalance / 250))).toFixed(2));
 
@@ -53,17 +52,17 @@ export function EnvironmentalOverview({
         <AlertBanner
           type="info"
           title="Demonstration Climatology Active"
-          message="Simulated satellite climatology is currently displayed as live telemetry proxy is operating on fallback mode."
+          message="Simulated satellite observations are displayed while the live telemetry proxy connects."
         />
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* 1. Temperature */}
         <MetricCard
-          label="Mean Temperature"
+          label="Temperature"
           value={avgTemp}
           unit="°C"
-          icon={<Thermometer className="w-4 h-4" />}
+          icon={<Thermometer className="w-4 h-4 text-[#2e7d32]" />}
           subtext={`High: ${maxTemp}°C • Low: ${minTemp}°C`}
           sourceTag="NASA POWER"
           isLive={!nasaData?.isDemonstrationData}
@@ -76,59 +75,59 @@ export function EnvironmentalOverview({
 
         {/* 2. Rainfall */}
         <MetricCard
-          label="30-Day Rainfall"
+          label="Rainfall (30-Day)"
           value={totalRain}
           unit="mm"
-          icon={<CloudRain className="w-4 h-4" />}
-          subtext={`Precipitation accumulation`}
+          icon={<CloudRain className="w-4 h-4 text-[#0284c7]" />}
+          subtext={`Cumulative precipitation`}
           sourceTag="NASA POWER / ERA5"
           isLive={!nasaData?.isDemonstrationData}
           status={totalRain < 20 ? 'warning' : 'optimal'}
           trend={{
-            value: totalRain > 50 ? 'Adequate' : 'Dry',
+            value: totalRain > 50 ? 'Adequate' : 'Dry Spell',
             direction: totalRain > 50 ? 'up' : 'down'
           }}
         />
 
-        {/* 3. Soil Moisture */}
+        {/* 3. Water Availability / Soil Moisture */}
         <MetricCard
-          label="Soil Moisture (0-7cm)"
+          label="Water Availability"
           value={soilMoistureVal}
           unit="vol %"
-          icon={<Droplets className="w-4 h-4" />}
-          subtext={`Field capacity estimate`}
+          icon={<Droplets className="w-4 h-4 text-[#528c70]" />}
+          subtext={`Soil moisture in root zone`}
           sourceTag="ERA5-Land Reanalysis"
           isLive={!weatherData?.isDemonstrationData}
           status={soilMoistureVal < 20 ? 'warning' : soilMoistureVal > 40 ? 'moderate' : 'optimal'}
           trend={{
-            value: soilMoistureVal > 25 ? 'Optimum' : 'Deficit',
+            value: soilMoistureVal > 25 ? 'Good moisture' : 'Moisture deficit',
             direction: soilMoistureVal > 25 ? 'up' : 'down'
           }}
         />
 
-        {/* 4. Vegetation Index (NDVI) */}
+        {/* 4. Crop & Vegetation Health (NDVI) */}
         <MetricCard
-          label="Vegetation Health"
+          label="Crop Health"
           value={syntheticNdvi}
           unit="NDVI"
-          icon={<Leaf className="w-4 h-4" />}
-          subtext={`Photosynthetic vigor`}
+          icon={<Leaf className="w-4 h-4 text-[#2e7d32]" />}
+          subtext={`Photosynthetic green vigor`}
           sourceTag="Satellite Climatology"
           isLive={false}
           status={syntheticNdvi > 0.5 ? 'optimal' : 'moderate'}
           trend={{
-            value: syntheticNdvi > 0.6 ? 'Vigorous' : 'Moderate',
+            value: syntheticNdvi > 0.6 ? 'Healthy vigor' : 'Moderate growth',
             direction: syntheticNdvi > 0.6 ? 'up' : 'neutral'
           }}
         />
 
-        {/* 5. Evapotranspiration */}
+        {/* 5. Water Demand / Evapotranspiration */}
         <MetricCard
-          label="Evapotranspiration"
+          label="Water Demand (ET₀)"
           value={totalEt0}
           unit="mm"
-          icon={<SunMedium className="w-4 h-4" />}
-          subtext={`Reference ET0 (FAO-56)`}
+          icon={<SunMedium className="w-4 h-4 text-[#d4973b]" />}
+          subtext={`Crop water demand (FAO-56)`}
           sourceTag="Open-Meteo ERA5"
           isLive={!weatherData?.isDemonstrationData}
           status={totalEt0 > totalRain + 30 ? 'moderate' : 'neutral'}
