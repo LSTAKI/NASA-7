@@ -133,10 +133,10 @@ export function ClimateTrendChart({ nasaData, weatherData }: ClimateTrendChartPr
       </div>
 
       {/* Chart Canvas */}
-      <div className="w-full h-72">
+      <div className="w-full h-96 lg:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
           {metricMode === 'temperature' ? (
-            <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: 15, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0ede6" vertical={false} />
               <XAxis dataKey="date" stroke="#8d9890" fontSize={11} tickLine={false} />
               <YAxis stroke="#8d9890" fontSize={11} tickLine={false} unit="°C" domain={['auto', 'auto']} />
@@ -155,7 +155,7 @@ export function ClimateTrendChart({ nasaData, weatherData }: ClimateTrendChartPr
                 dataKey="t2mMax"
                 name="High Temp (°C)"
                 stroke="#d4973b"
-                strokeWidth={1.8}
+                strokeWidth={2}
                 dot={false}
               />
               <Line
@@ -163,20 +163,20 @@ export function ClimateTrendChart({ nasaData, weatherData }: ClimateTrendChartPr
                 dataKey="t2m"
                 name="Mean Temp (°C)"
                 stroke="#2e7d32"
-                strokeWidth={2.4}
-                dot={{ r: 2.5, fill: '#2e7d32' }}
+                strokeWidth={2.6}
+                dot={{ r: 3, fill: '#2e7d32' }}
               />
               <Line
                 type="monotone"
                 dataKey="t2mMin"
                 name="Low Temp (°C)"
                 stroke="#0284c7"
-                strokeWidth={1.8}
+                strokeWidth={2}
                 dot={false}
               />
             </ComposedChart>
           ) : metricMode === 'water_balance' ? (
-            <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: 15, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0ede6" vertical={false} />
               <XAxis dataKey="date" stroke="#8d9890" fontSize={11} tickLine={false} />
               <YAxis stroke="#8d9890" fontSize={11} tickLine={false} unit=" mm" />
@@ -201,12 +201,12 @@ export function ClimateTrendChart({ nasaData, weatherData }: ClimateTrendChartPr
                 dataKey="et0"
                 name="Water Demand ET₀ (mm)"
                 stroke="#d4973b"
-                strokeWidth={2.2}
-                dot={{ r: 2.5, fill: '#d4973b' }}
+                strokeWidth={2.4}
+                dot={{ r: 3, fill: '#d4973b' }}
               />
             </ComposedChart>
           ) : (
-            <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: 15, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0ede6" vertical={false} />
               <XAxis dataKey="date" stroke="#8d9890" fontSize={11} tickLine={false} />
               <YAxis stroke="#8d9890" fontSize={11} tickLine={false} unit="%" domain={[0, 60]} />
@@ -225,15 +225,15 @@ export function ClimateTrendChart({ nasaData, weatherData }: ClimateTrendChartPr
                 dataKey="soilMoisture"
                 name="Soil Moisture (vol %)"
                 stroke="#528c70"
-                strokeWidth={2.5}
-                dot={{ r: 3, fill: '#528c70' }}
+                strokeWidth={2.6}
+                dot={{ r: 3.5, fill: '#528c70' }}
               />
               <Line
                 type="monotone"
                 dataKey="soilTemp"
                 name="Soil Temperature (°C)"
                 stroke="#d4973b"
-                strokeWidth={1.8}
+                strokeWidth={2}
                 dot={false}
               />
             </ComposedChart>

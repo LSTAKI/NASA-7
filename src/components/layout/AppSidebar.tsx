@@ -55,7 +55,7 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
       {/* Sidebar Drawer */}
       <aside
         className={cn(
-          'fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#18392b] text-white flex flex-col justify-between transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 border-r border-[#244b39]/40 shadow-xl lg:shadow-none',
+          'fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#18392b] text-white flex flex-col justify-between transition-transform duration-200 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:self-start lg:shrink-0 lg:translate-x-0 border-r border-[#244b39]/40 shadow-xl lg:shadow-none',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >

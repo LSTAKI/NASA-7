@@ -220,17 +220,17 @@ export default function OverviewPage() {
         />
       </section>
 
-      {/* 5. Historical Weather Charts & Field Advice */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <ClimateTrendChart nasaData={nasaData} weatherData={weatherData} />
-        </div>
-        <div className="lg:col-span-1">
-          <AgriculturalInsights />
-        </div>
+      {/* 5. Historical Weather & Growing Conditions Chart */}
+      <section>
+        <ClimateTrendChart nasaData={nasaData} weatherData={weatherData} />
       </section>
 
-      {/* 6. Active Farm & Field Details */}
+      {/* 6. Field Advice & Soil Insights (moved below the graph) */}
+      <section>
+        <AgriculturalInsights />
+      </section>
+
+      {/* 7. Active Farm & Field Details */}
       <section>
         <RecentFarmActivity />
       </section>
