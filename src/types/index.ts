@@ -115,7 +115,8 @@ export interface SoilGridsResponse {
 }
 
 // Agronomic Crop Knowledge Model
-export type CropFamily = 'Poaceae (Gramineae)' | 'Fabaceae (Leguminosae)' | 'Brassicaceae' | 'Solanaceae' | 'Malvaceae' | 'Asteraceae' | 'Alliaceae';
+export type CropFamily = 'Poaceae (Gramineae)' | 'Fabaceae (Leguminosae)' | 'Brassicaceae' | 'Solanaceae' | 'Malvaceae' | 'Asteraceae' | 'Alliaceae' | 'Apiaceae';
+export type CropCategory = 'cereal' | 'legume' | 'vegetable' | 'cover_crop' | 'fiber' | 'oilseed';
 export type RootDepthCategory = 'shallow' | 'medium' | 'deep';
 export type NitrogenImpact = 'fixer' | 'heavy_feeder' | 'moderate_feeder' | 'light_feeder';
 export type WaterRequirementLevel = 'low' | 'moderate' | 'high' | 'very_high';
@@ -125,6 +126,7 @@ export interface Crop {
   name: string;
   scientificName: string;
   family: CropFamily;
+  category?: CropCategory;
   durationDays: { min: number; max: number };
   waterRequirement: WaterRequirementLevel;
   optimalRainfallMm: { min: number; max: number };
