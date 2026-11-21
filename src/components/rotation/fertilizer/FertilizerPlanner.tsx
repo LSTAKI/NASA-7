@@ -46,6 +46,7 @@ import {
 
 export interface FertilizerPlannerProps {
   initialCropId?: string;
+  farmId?: string;
   initialAreaHectares?: number;
   farmName?: string;
   onCropChange?: (cropId: string) => void;
@@ -55,6 +56,7 @@ export interface FertilizerPlannerProps {
 
 export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
   initialCropId = 'wheat',
+  farmId,
   initialAreaHectares,
   farmName,
   onCropChange,
@@ -63,6 +65,10 @@ export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
 }) => {
   // All 16 crops from the agronomic database
   const allCropProfiles = useMemo(() => getAllFertilizerRequirements(), []);
+
+  // Farm identity key (prefers stable farmId, falls back to farmName)
+  const farmIdentityKey = farmId !== undefined ? farmId : farmName;
+  const [prevFarmKey, setPrevFarmKey] = useState<string | undefined>(farmIdentityKey);
 
   // Active state and previous prop tracking for zero-flash render-time synchronization
   const [prevInitialCropId, setPrevInitialCropId] = useState<string>(initialCropId);
@@ -84,9 +90,14 @@ export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
     setSelectedCropId(initialCropId);
   }
 
-  // Synchronize area value during render when active farm area prop changes
-  // When active farm area is zero, invalid or unavailable, immediately clear areaValue to 0
-  if (initialAreaHectares !== prevInitialAreaHectares) {
+  // Detect farm identity change OR farm area change
+  // When active farm changes, reset areaValue to the newly selected farm's recorded area,
+  // clearing any manual override from the previous farm.
+  const isFarmChanged = farmIdentityKey !== prevFarmKey ||
+                        initialAreaHectares !== prevInitialAreaHectares;
+
+  if (isFarmChanged) {
+    setPrevFarmKey(farmIdentityKey);
     setPrevInitialAreaHectares(initialAreaHectares);
     if (typeof initialAreaHectares === 'number' && Number.isFinite(initialAreaHectares) && initialAreaHectares > 0) {
       setAreaValue(areaUnit === 'acres' ? roundTo(hectaresToAcres(initialAreaHectares), 1) : initialAreaHectares);

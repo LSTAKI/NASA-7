@@ -21,6 +21,7 @@ export interface CropCardProps {
   rank: number;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  farmId?: string;
   farmAreaHectares: number;
   farmName?: string;
   precedingCropId: string;
@@ -33,6 +34,7 @@ export const CropCard: React.FC<CropCardProps> = ({
   rank,
   isExpanded,
   onToggleExpand,
+  farmId,
   farmAreaHectares,
   farmName,
   precedingCropId,
@@ -334,6 +336,7 @@ export const CropCard: React.FC<CropCardProps> = ({
           {/* Embedded Smart Fertilizer Planner for Active Crop */}
           <FertilizerPlanner
             initialCropId={activeFertilizerCropId}
+            farmId={farmId}
             initialAreaHectares={farmAreaHectares}
             farmName={farmName}
             embedded={true}

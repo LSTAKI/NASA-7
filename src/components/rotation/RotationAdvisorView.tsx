@@ -373,6 +373,7 @@ export function RotationAdvisorView() {
               rank={idx + 1}
               isExpanded={expandedCropId === item.crop.id}
               onToggleExpand={() => setExpandedCropId(expandedCropId === item.crop.id ? null : item.crop.id)}
+              farmId={activeFarm?.id}
               farmAreaHectares={activeFarm?.areaHectares || 0}
               farmName={activeFarm?.name}
               precedingCropId={activePrecedingCropId}
