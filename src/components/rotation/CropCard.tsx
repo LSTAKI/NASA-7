@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CropRotationScore } from '@/types';
 import { CropVisualIcon, getCropVisualMetadata } from '@/components/rotation/CropVisualIcon';
 import { Badge } from '@/components/ui/Badge';
@@ -40,12 +40,16 @@ export const CropCard: React.FC<CropCardProps> = ({
   defaultOpenFertilizer = false,
 }) => {
   const [isFertilizerOpen, setIsFertilizerOpen] = useState<boolean>(defaultOpenFertilizer);
+
+  // Active fertilizer crop with render-time synchronization
+  const [prevItemCropId, setPrevItemCropId] = useState<string>(item.crop.id);
   const [activeFertilizerCropId, setActiveFertilizerCropId] = useState<string>(item.crop.id);
 
-  // Synchronize active fertilizer crop when item crop changes
-  useEffect(() => {
+  // Synchronize active fertilizer crop during render when item crop changes
+  if (item.crop.id !== prevItemCropId) {
+    setPrevItemCropId(item.crop.id);
     setActiveFertilizerCropId(item.crop.id);
-  }, [item.crop.id]);
+  }
 
   const score = item.overallScore;
   const meta = getCropVisualMetadata(item.crop.id);

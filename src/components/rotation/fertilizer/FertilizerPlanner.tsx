@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   FertilizerCombinationType,
   SoilTestParameters,
@@ -64,9 +64,12 @@ export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
   // All 16 crops from the agronomic database
   const allCropProfiles = useMemo(() => getAllFertilizerRequirements(), []);
 
-  // Active state
+  // Active state and previous prop tracking for zero-flash render-time synchronization
+  const [prevInitialCropId, setPrevInitialCropId] = useState<string>(initialCropId);
   const [selectedCropId, setSelectedCropId] = useState<string>(initialCropId);
   const [areaUnit, setAreaUnit] = useState<'ha' | 'acres'>('ha');
+
+  const [prevInitialAreaHectares, setPrevInitialAreaHectares] = useState<number | undefined>(initialAreaHectares);
   const [areaValue, setAreaValue] = useState<number>(() => {
     if (typeof initialAreaHectares === 'number' && Number.isFinite(initialAreaHectares) && initialAreaHectares > 0) {
       return initialAreaHectares;
@@ -75,22 +78,22 @@ export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
   });
   const [combinationType, setCombinationType] = useState<FertilizerCombinationType>('DAP_UREA_MOP');
 
-  // Synchronize selected crop when initialCropId prop changes from parent
-  useEffect(() => {
-    if (initialCropId && initialCropId !== selectedCropId) {
-      setSelectedCropId(initialCropId);
-    }
-  }, [initialCropId]);
+  // Synchronize selected crop during render (zero-flash / zero-stale calculations)
+  if (initialCropId !== prevInitialCropId) {
+    setPrevInitialCropId(initialCropId);
+    setSelectedCropId(initialCropId);
+  }
 
-  // Synchronize area value when initialAreaHectares prop changes from active farm
-  // When active farm area is zero, invalid or unavailable, immediately clear to 0
-  useEffect(() => {
+  // Synchronize area value during render when active farm area prop changes
+  // When active farm area is zero, invalid or unavailable, immediately clear areaValue to 0
+  if (initialAreaHectares !== prevInitialAreaHectares) {
+    setPrevInitialAreaHectares(initialAreaHectares);
     if (typeof initialAreaHectares === 'number' && Number.isFinite(initialAreaHectares) && initialAreaHectares > 0) {
       setAreaValue(areaUnit === 'acres' ? roundTo(hectaresToAcres(initialAreaHectares), 1) : initialAreaHectares);
     } else {
       setAreaValue(0);
     }
-  }, [initialAreaHectares]);
+  }
 
   // Soil-test lab data state
   const [showSoilTestPanel, setShowSoilTestPanel] = useState<boolean>(false);
