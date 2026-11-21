@@ -118,6 +118,27 @@ export interface SoilTestParameters {
   testDate?: string;
   laboratoryName?: string;
   isSoilHealthCardData?: boolean;
+  /**
+   * If true, applies the macro-level ±25% adjustment from the Indian Soil Health Card
+   * general guidelines (Muhr et al. 1965 / DAC&FW 2015).
+   * Disabled by default because generalized rating adjustments are not crop-calibrated STCR equations.
+   */
+  applyGeneralizedRatingAdjustment?: boolean;
+}
+
+/**
+ * Individual soil parameter rating evaluation
+ */
+export interface SoilTestEvaluationItem {
+  parameterName: string;
+  testedValue: number;
+  unit: string;
+  extractionMethod: string;
+  ratingTier: FertilityTier;
+  referenceStandard: string;
+  isVerifiedReference: boolean;
+  adjustmentMultiplierApplied: number;
+  advisory: string;
 }
 
 /**
@@ -147,6 +168,7 @@ export interface FertilizerNutrientRequirement {
 
   // Application timing splits
   applicationSchedule: FertilizerScheduleSplit[];
+  applicationScheduleStatus?: RecommendationStatus;
 
   // Compatible commercial fertilizers
   suitableFertilizerProductIds: string[];
@@ -188,6 +210,7 @@ export interface NutrientDemandResult {
   };
   soilTestAdjustmentApplied: boolean;
   soilTestAdjustmentDetails?: string;
+  soilEvaluations?: SoilTestEvaluationItem[];
   warnings: string[];
   isValid: boolean;
   errorMessage?: string;
@@ -208,8 +231,31 @@ export interface CalculatedFertilizerProductItem {
     potassium: number;
     sulfur?: number;
     calcium?: number;
+    zinc?: number;
   };
   applicationRole: string;
+}
+
+/**
+ * Secondary and Micronutrient Accounting Models
+ */
+export interface NutrientSupplyDemandItem {
+  nutrientName: string;
+  chemicalSymbol: string;
+  demandedKg: number;
+  suppliedKg: number;
+  balanceKg: number;               // supplied - demanded (negative = deficit, positive = surplus)
+  status: 'satisfied' | 'deficit' | 'surplus' | 'not_applicable';
+  isSatisfied: boolean;
+  advisory?: string;
+}
+
+export interface SecondaryNutrientAccounting {
+  sulfur?: NutrientSupplyDemandItem;
+  zinc?: NutrientSupplyDemandItem;
+  calcium?: NutrientSupplyDemandItem;
+  hasUnmetRequirements: boolean;
+  unmetNutrients: string[];
 }
 
 export interface FertilizerPlanResult {
@@ -226,6 +272,7 @@ export interface FertilizerPlanResult {
       phosphorus: number;
       potassium: number;
       sulfur?: number;
+      zinc?: number;
     };
     suppliedKg: {
       nitrogen: number;
@@ -233,6 +280,7 @@ export interface FertilizerPlanResult {
       potassium: number;
       sulfur?: number;
       calcium?: number;
+      zinc?: number;
     };
     balanceKg: {
       nitrogen: number;
@@ -242,6 +290,8 @@ export interface FertilizerPlanResult {
     isNutrientImbalanced: boolean;
     imbalanceWarnings: string[];
   };
+  secondaryNutrientAccounting: SecondaryNutrientAccounting;
+  isRecommendationComplete: boolean; // false if any required secondary/micronutrient has an unfulfilled deficit
   suitabilityForCrop: {
     isSuitable: boolean;
     suitabilityNotes: string[];
@@ -288,6 +338,7 @@ export interface ApplicationScheduleResult {
     phosphorus: number;
     potassium: number;
   };
+  scheduleStatus: RecommendationStatus;
   isAllocationValid: boolean;
   allocationWarnings: string[];
   isValid: boolean;
@@ -303,6 +354,8 @@ export interface CalculatedOrganicAlternativeItem {
   timingAndMethod: string;
   biofertilizerStrain?: string;
   releaseAssumptions: string;
+  scientificReference?: string;
+  isProvisional?: boolean;
 }
 
 export interface OrganicAlternativesResult {

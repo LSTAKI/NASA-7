@@ -16,6 +16,9 @@ import {
   CalculatedOrganicAlternativeItem,
   OrganicAlternativesResult,
   SoilTestParameters,
+  SoilTestEvaluationItem,
+  SecondaryNutrientAccounting,
+  NutrientSupplyDemandItem,
 } from '../../types/fertilizer';
 import {
   getFertilizerRequirementByCropId,
@@ -59,14 +62,20 @@ export function acresToHectares(acres: number): number {
 }
 
 // ============================================================================
-// 1. NUTRIENT REQUIREMENT CALCULATION
+// 1. NUTRIENT REQUIREMENT CALCULATION WITH SCIENTIFIC SAFEGUARDS
 // ============================================================================
 
 /**
- * Calculates total nutrient demand for a given crop and farm area,
- * accounting for baseline RDF and verified soil-test adjustments where available.
+ * Calculates total nutrient demand for a given crop and farm area.
  *
- * Total nutrient requirement (kg) = Baseline RDF (kg/ha) * Farm area (ha) * SoilTestFactor
+ * Safeguard Principles:
+ * 1. Rejects SoilGrids estimated total nitrogen as a proxy for plant-available nitrogen.
+ * 2. Classifies laboratory Available N, P, and K into Low / Medium / High tiers based on
+ *    official ICAR / Soil Health Card benchmarks (Muhr et al. 1965, Subbiah & Asija 1956).
+ * 3. Generalized ±25% scaling is DISABLED by default. It is only applied if explicitly
+ *    opted-in via `soilTestAdjustment.applyGeneralizedRatingAdjustment === true`.
+ * 4. When automatic adjustment is disabled or unverified, baseline RDF is strictly retained
+ *    and an explanatory advisory is returned.
  */
 export function calculateNutrientDemand(
   cropId: string,
@@ -135,7 +144,7 @@ export function calculateNutrientDemand(
 
   if (cropReq.recommendationStatus === 'provisional') {
     warnings.push(
-      `Recommendation for ${cropReq.cropName} is provisional. Synthetic fertilization is generally discouraged for green manure/cover crops to protect biological N2 fixation.`
+      `Recommendation for ${cropReq.cropName} is provisional. Multi-species cover crops are ecological green manures; synthetic nitrogen is 0 kg/ha to avoid suppressing biological N2 fixation.`
     );
   }
 
@@ -145,76 +154,160 @@ export function calculateNutrientDemand(
   let kMultiplier = 1.0;
   let soilTestAdjustmentApplied = false;
   const adjustmentDetails: string[] = [];
+  const soilEvaluations: SoilTestEvaluationItem[] = [];
 
   if (soilTestAdjustment) {
-    // Scientific Guardrail: Reject SoilGrids total nitrogen as a proxy for available nitrogen
+    // ------------------------------------------------------------------------
+    // SAFEGUARD 1: Strictly reject SoilGrids Total N as plant-available nitrogen
+    // ------------------------------------------------------------------------
     if (
       soilTestAdjustment.soilGridsTotalNitrogenGKg !== undefined &&
       soilTestAdjustment.availableNitrogenKgHa === undefined
     ) {
       warnings.push(
-        'SoilGrids estimated Total Nitrogen (g/kg) represents total non-mineralized organic nitrogen and cannot be used as plant-available nitrogen. Standard baseline RDF is retained for Nitrogen.'
+        `SoilGrids estimated Total Nitrogen (${soilTestAdjustment.soilGridsTotalNitrogenGKg} g/kg) represents total non-mineralized organic nitrogen and CANNOT be used as plant-available mineral nitrogen (Subbiah & Asija 1956). Baseline RDF is retained for Nitrogen.`
       );
     }
 
-    // Available Nitrogen (Alkaline KMnO4 test)
+    const applyMacroAdjustment = Boolean(soilTestAdjustment.applyGeneralizedRatingAdjustment);
+
+    // ------------------------------------------------------------------------
+    // SAFEGUARD 2: Available Nitrogen (Alkaline KMnO4 test, Subbiah & Asija 1956)
+    // ------------------------------------------------------------------------
     if (
       soilTestAdjustment.availableNitrogenKgHa !== undefined &&
       Number.isFinite(soilTestAdjustment.availableNitrogenKgHa) &&
       soilTestAdjustment.availableNitrogenKgHa > 0
     ) {
       const availN = soilTestAdjustment.availableNitrogenKgHa;
-      if (availN < SOIL_TEST_RATING_THRESHOLDS.availableNitrogen.low.max) {
-        nMultiplier = 1.25; // +25% ICAR standard adjustment for low fertility
-        adjustmentDetails.push(`Available N is Low (${availN} kg/ha): +25% Nitrogen applied to baseline RDF.`);
-        soilTestAdjustmentApplied = true;
-      } else if (availN > SOIL_TEST_RATING_THRESHOLDS.availableNitrogen.high.min) {
-        nMultiplier = 0.75; // -25% ICAR adjustment for high fertility
-        adjustmentDetails.push(`Available N is High (${availN} kg/ha): -25% Nitrogen reduced from baseline RDF.`);
-        soilTestAdjustmentApplied = true;
+      const isLow = availN < SOIL_TEST_RATING_THRESHOLDS.availableNitrogen.low.max;
+      const isHigh = availN > SOIL_TEST_RATING_THRESHOLDS.availableNitrogen.high.min;
+      const tier = isLow ? 'low' : isHigh ? 'high' : 'medium';
+
+      if (applyMacroAdjustment) {
+        if (isLow) {
+          nMultiplier = 1.25;
+          adjustmentDetails.push(`Available N is Low (${availN} kg/ha): +25% Nitrogen applied per Soil Health Card macro guidelines (Muhr et al. 1965).`);
+          soilTestAdjustmentApplied = true;
+        } else if (isHigh) {
+          nMultiplier = 0.75;
+          adjustmentDetails.push(`Available N is High (${availN} kg/ha): -25% Nitrogen reduced per Soil Health Card macro guidelines (Muhr et al. 1965).`);
+          soilTestAdjustmentApplied = true;
+        } else {
+          adjustmentDetails.push(`Available N is Medium (${availN} kg/ha): Standard 100% baseline RDF retained.`);
+        }
       } else {
-        adjustmentDetails.push(`Available N is Medium (${availN} kg/ha): Standard 100% baseline RDF retained.`);
+        // Automatic scaling is disabled by default to prevent unverified assumptions
+        adjustmentDetails.push(
+          `Available N is ${tier.toUpperCase()} (${availN} kg/ha, Alkaline KMnO4). Baseline RDF retained. Automatic ±25% scaling is disabled by default because generalized rating thresholds are not crop-calibrated STCR equations.`
+        );
       }
+
+      soilEvaluations.push({
+        parameterName: 'Available Nitrogen (N)',
+        testedValue: availN,
+        unit: 'kg N/ha',
+        extractionMethod: SOIL_TEST_RATING_THRESHOLDS.availableNitrogen.method,
+        ratingTier: tier,
+        referenceStandard: 'Subbiah & Asija (1956) / Muhr et al. (1965)',
+        isVerifiedReference: true,
+        adjustmentMultiplierApplied: nMultiplier,
+        advisory: applyMacroAdjustment
+          ? `Macro adjustment applied (${nMultiplier}x).`
+          : 'Baseline RDF retained. Enable applyGeneralizedRatingAdjustment to apply standard Soil Health Card macro scaling.',
+      });
     }
 
-    // Available Phosphorus (Olsen P test)
+    // ------------------------------------------------------------------------
+    // SAFEGUARD 3: Available Phosphorus (Olsen P test, Olsen et al. 1954)
+    // ------------------------------------------------------------------------
     if (
       soilTestAdjustment.availablePhosphorusKgHa !== undefined &&
       Number.isFinite(soilTestAdjustment.availablePhosphorusKgHa) &&
       soilTestAdjustment.availablePhosphorusKgHa > 0
     ) {
       const availP = soilTestAdjustment.availablePhosphorusKgHa;
-      if (availP < SOIL_TEST_RATING_THRESHOLDS.availablePhosphorus.low.max) {
-        pMultiplier = 1.25; // +25% adjustment
-        adjustmentDetails.push(`Available P2O5 is Low (${availP} kg/ha): +25% Phosphorus applied to baseline RDF.`);
-        soilTestAdjustmentApplied = true;
-      } else if (availP > SOIL_TEST_RATING_THRESHOLDS.availablePhosphorus.high.min) {
-        pMultiplier = 0.75; // -25% adjustment
-        adjustmentDetails.push(`Available P2O5 is High (${availP} kg/ha): -25% Phosphorus reduced from baseline RDF.`);
-        soilTestAdjustmentApplied = true;
+      const isLow = availP < SOIL_TEST_RATING_THRESHOLDS.availablePhosphorus.low.max;
+      const isHigh = availP > SOIL_TEST_RATING_THRESHOLDS.availablePhosphorus.high.min;
+      const tier = isLow ? 'low' : isHigh ? 'high' : 'medium';
+
+      if (applyMacroAdjustment) {
+        if (isLow) {
+          pMultiplier = 1.25;
+          adjustmentDetails.push(`Available P2O5 is Low (${availP} kg/ha): +25% Phosphorus applied per Soil Health Card macro guidelines.`);
+          soilTestAdjustmentApplied = true;
+        } else if (isHigh) {
+          pMultiplier = 0.75;
+          adjustmentDetails.push(`Available P2O5 is High (${availP} kg/ha): -25% Phosphorus reduced per Soil Health Card macro guidelines.`);
+          soilTestAdjustmentApplied = true;
+        } else {
+          adjustmentDetails.push(`Available P2O5 is Medium (${availP} kg/ha): Standard 100% baseline RDF retained.`);
+        }
       } else {
-        adjustmentDetails.push(`Available P2O5 is Medium (${availP} kg/ha): Standard 100% baseline RDF retained.`);
+        adjustmentDetails.push(
+          `Available P2O5 is ${tier.toUpperCase()} (${availP} kg/ha, Olsen P). Baseline RDF retained. Automatic ±25% scaling is disabled by default.`
+        );
       }
+
+      soilEvaluations.push({
+        parameterName: 'Available Phosphorus (P2O5)',
+        testedValue: availP,
+        unit: 'kg P2O5/ha eq.',
+        extractionMethod: SOIL_TEST_RATING_THRESHOLDS.availablePhosphorus.method,
+        ratingTier: tier,
+        referenceStandard: 'Olsen et al. (1954) / Bray & Kurtz (1945)',
+        isVerifiedReference: true,
+        adjustmentMultiplierApplied: pMultiplier,
+        advisory: applyMacroAdjustment
+          ? `Macro adjustment applied (${pMultiplier}x).`
+          : 'Baseline RDF retained. Enable applyGeneralizedRatingAdjustment to apply standard Soil Health Card macro scaling.',
+      });
     }
 
-    // Available Potassium (Neutral 1N NH4OAc-K test)
+    // ------------------------------------------------------------------------
+    // SAFEGUARD 4: Available Potassium (Neutral 1N NH4OAc-K, Hanway & Heidel 1952)
+    // ------------------------------------------------------------------------
     if (
       soilTestAdjustment.availablePotassiumKgHa !== undefined &&
       Number.isFinite(soilTestAdjustment.availablePotassiumKgHa) &&
       soilTestAdjustment.availablePotassiumKgHa > 0
     ) {
       const availK = soilTestAdjustment.availablePotassiumKgHa;
-      if (availK < SOIL_TEST_RATING_THRESHOLDS.availablePotassium.low.max) {
-        kMultiplier = 1.25; // +25% adjustment
-        adjustmentDetails.push(`Available K2O is Low (${availK} kg/ha): +25% Potassium applied to baseline RDF.`);
-        soilTestAdjustmentApplied = true;
-      } else if (availK > SOIL_TEST_RATING_THRESHOLDS.availablePotassium.high.min) {
-        kMultiplier = 0.75; // -25% adjustment
-        adjustmentDetails.push(`Available K2O is High (${availK} kg/ha): -25% Potassium reduced from baseline RDF.`);
-        soilTestAdjustmentApplied = true;
+      const isLow = availK < SOIL_TEST_RATING_THRESHOLDS.availablePotassium.low.max;
+      const isHigh = availK > SOIL_TEST_RATING_THRESHOLDS.availablePotassium.high.min;
+      const tier = isLow ? 'low' : isHigh ? 'high' : 'medium';
+
+      if (applyMacroAdjustment) {
+        if (isLow) {
+          kMultiplier = 1.25;
+          adjustmentDetails.push(`Available K2O is Low (${availK} kg/ha): +25% Potassium applied per Soil Health Card macro guidelines.`);
+          soilTestAdjustmentApplied = true;
+        } else if (isHigh) {
+          kMultiplier = 0.75;
+          adjustmentDetails.push(`Available K2O is High (${availK} kg/ha): -25% Potassium reduced per Soil Health Card macro guidelines.`);
+          soilTestAdjustmentApplied = true;
+        } else {
+          adjustmentDetails.push(`Available K2O is Medium (${availK} kg/ha): Standard 100% baseline RDF retained.`);
+        }
       } else {
-        adjustmentDetails.push(`Available K2O is Medium (${availK} kg/ha): Standard 100% baseline RDF retained.`);
+        adjustmentDetails.push(
+          `Available K2O is ${tier.toUpperCase()} (${availK} kg/ha, NH4OAc-K). Baseline RDF retained. Automatic ±25% scaling is disabled by default.`
+        );
       }
+
+      soilEvaluations.push({
+        parameterName: 'Available Potassium (K2O)',
+        testedValue: availK,
+        unit: 'kg K2O/ha eq.',
+        extractionMethod: SOIL_TEST_RATING_THRESHOLDS.availablePotassium.method,
+        ratingTier: tier,
+        referenceStandard: 'Hanway & Heidel (1952)',
+        isVerifiedReference: true,
+        adjustmentMultiplierApplied: kMultiplier,
+        advisory: applyMacroAdjustment
+          ? `Macro adjustment applied (${kMultiplier}x).`
+          : 'Baseline RDF retained. Enable applyGeneralizedRatingAdjustment to apply standard Soil Health Card macro scaling.',
+      });
     }
   }
 
@@ -249,21 +342,30 @@ export function calculateNutrientDemand(
     totalDemandKg,
     soilTestAdjustmentApplied,
     soilTestAdjustmentDetails: adjustmentDetails.length > 0 ? adjustmentDetails.join(' | ') : undefined,
+    soilEvaluations: soilEvaluations.length > 0 ? soilEvaluations : undefined,
     warnings,
     isValid: true,
   };
 }
 
 // ============================================================================
-// 2. FERTILIZER PRODUCT & BAG COUNT CALCULATION
+// 2. FERTILIZER PRODUCT & BAG COUNT CALCULATION WITH SECONDARY NUTRIENT ACCOUNTING
 // ============================================================================
 
 /**
- * Calculates exact commercial fertilizer quantities and packaging bag counts
- * for the selected fertilizer combination type (DAP vs SSP).
+ * Calculates commercial fertilizer quantities, bag counts, and complete
+ * secondary nutrient accounting (Sulphur, Zinc, Calcium).
  *
- * Implements the rigorous multi-nutrient DAP offset algorithm and avoids
- * silently masking nutrient imbalances.
+ * Implements:
+ * 1. Multi-nutrient DAP offset algorithm.
+ * 2. Nutrient imbalance warnings when DAP supplies excess Nitrogen (clamped to 0 Urea).
+ * 3. Exact application kg vs integer purchase bags.
+ * 4. Secondary nutrient accounting:
+ *    - Detects unmet Sulphur demand in DAP + Urea + MOP formulations.
+ *    - Detects unmet Zinc demand in all primary formulations.
+ *    - Accounts for Sulphur and Calcium contributions from SSP.
+ *    - Detects Sulphur surplus from SSP.
+ *    - Flags `isRecommendationComplete: false` when required secondary nutrients are unmet.
  */
 export function calculateFertilizerProducts(
   nutrientDemand: NutrientDemandResult,
@@ -286,6 +388,11 @@ export function calculateFertilizerProducts(
         isNutrientImbalanced: false,
         imbalanceWarnings: [],
       },
+      secondaryNutrientAccounting: {
+        hasUnmetRequirements: false,
+        unmetNutrients: [],
+      },
+      isRecommendationComplete: false,
       suitabilityForCrop: { isSuitable: false, suitabilityNotes: ['Invalid nutrient demand.'] },
       notes: [],
       warnings: nutrientDemand.warnings,
@@ -305,6 +412,7 @@ export function calculateFertilizerProducts(
   const demandedP = nutrientDemand.totalDemandKg.phosphorus;
   const demandedK = nutrientDemand.totalDemandKg.potassium;
   const demandedS = nutrientDemand.totalDemandKg.sulfur;
+  const demandedZn = nutrientDemand.totalDemandKg.zinc;
 
   // Retrieve products from database
   const ureaSpec = getFertilizerProductById('neem_coated_urea');
@@ -330,6 +438,7 @@ export function calculateFertilizerProducts(
   let suppliedK = 0;
   let suppliedS = 0;
   let suppliedCa = 0;
+  const suppliedZn = 0; // Neither DAP, SSP, Urea nor MOP supply zinc
   let isNutrientImbalanced = false;
 
   // --------------------------------------------------------------------------
@@ -367,7 +476,6 @@ export function calculateFertilizerProducts(
         `Nutrient Imbalance: DAP required to meet the Phosphorus target (${roundTo(demandedP, 1)} kg P2O5) automatically supplies ${roundTo(nFromDap, 1)} kg Nitrogen, which exceeds the crop target requirement (${roundTo(demandedN, 1)} kg N) by ${roundTo(excessN, 1)} kg N. Zero Urea is required, but an unavoidable excess of Nitrogen will be applied. Consider using SSP + Urea + MOP to control Nitrogen independently.`
       );
     } else {
-      // Exactly 0 remaining
       ureaQtyKg = 0;
       ureaBags = 0;
     }
@@ -436,9 +544,6 @@ export function calculateFertilizerProducts(
     }
 
     notes.push('DAP supplies 18% Ammoniacal Nitrogen which has been credited towards total crop Nitrogen requirement.');
-    if (demandedS && demandedS > 0) {
-      notes.push(`Crop has a verified Sulfur demand of ${roundTo(demandedS, 1)} kg S. DAP does not contain sulfur; consider supplemental Gypsum or switching to SSP.`);
-    }
   }
 
   // --------------------------------------------------------------------------
@@ -483,7 +588,7 @@ export function calculateFertilizerProducts(
           sulfur: roundTo(sFromSsp, 1),
           calcium: roundTo(caFromSsp, 1),
         },
-        applicationRole: 'Phosphorus, Sulfur & Calcium Carrier',
+        applicationRole: 'Phosphorus, Sulphur & Calcium Carrier',
       });
     }
 
@@ -526,7 +631,103 @@ export function calculateFertilizerProducts(
     }
 
     notes.push(
-      `SSP naturally supplies ${roundTo(sFromSsp, 1)} kg Sulfur (11%) and ${roundTo(caFromSsp, 1)} kg Calcium (19%), highly beneficial for oilseeds, pulses, and alliums.`
+      `SSP naturally supplies ${roundTo(sFromSsp, 1)} kg Sulphur (11%) and ${roundTo(caFromSsp, 1)} kg Calcium (19%), highly beneficial for oilseeds, pulses, and alliums.`
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // SECONDARY NUTRIENT ACCOUNTING (SULPHUR, ZINC, CALCIUM)
+  // --------------------------------------------------------------------------
+  const unmetNutrients: string[] = [];
+  let hasUnmetRequirements = false;
+
+  // Sulphur Accounting
+  let sulfurAccounting: NutrientSupplyDemandItem | undefined = undefined;
+  if (demandedS !== undefined && demandedS > 0) {
+    const sDemanded = roundTo(demandedS, 1);
+    const sSupplied = roundTo(suppliedS, 1);
+    const sBalance = roundTo(sSupplied - sDemanded, 1);
+    const isSatisfied = sSupplied >= sDemanded;
+
+    if (!isSatisfied) {
+      hasUnmetRequirements = true;
+      unmetNutrients.push('Sulphur (S)');
+    }
+
+    sulfurAccounting = {
+      nutrientName: 'Sulphur',
+      chemicalSymbol: 'S',
+      demandedKg: sDemanded,
+      suppliedKg: sSupplied,
+      balanceKg: sBalance,
+      status: !isSatisfied ? 'deficit' : sBalance > sDemanded * 0.5 ? 'surplus' : 'satisfied',
+      isSatisfied,
+      advisory: !isSatisfied
+        ? `Crop requires ${sDemanded} kg Sulphur, but ${combinationType} supplies ${sSupplied} kg S (deficit: ${Math.abs(sBalance)} kg S). Supplemental Gypsum (400 kg/ha at pegging for groundnut) or elemental sulphur is required.`
+        : sBalance > 0
+        ? `Sulphur demand is fully satisfied by SSP with an excess of ${sBalance} kg S (safe in neutral/alkaline soils).`
+        : 'Sulphur requirement is satisfied.',
+    };
+  } else if (suppliedS > 0) {
+    // Crop has no explicit S demand, but SSP supplied S
+    sulfurAccounting = {
+      nutrientName: 'Sulphur',
+      chemicalSymbol: 'S',
+      demandedKg: 0,
+      suppliedKg: roundTo(suppliedS, 1),
+      balanceKg: roundTo(suppliedS, 1),
+      status: 'surplus',
+      isSatisfied: true,
+      advisory: `SSP supplies ${roundTo(suppliedS, 1)} kg incidental Sulphur to a crop without an explicit baseline sulphur recommendation.`,
+    };
+  }
+
+  // Zinc Accounting
+  let zincAccounting: NutrientSupplyDemandItem | undefined = undefined;
+  if (demandedZn !== undefined && demandedZn > 0) {
+    const znDemanded = roundTo(demandedZn, 1);
+    hasUnmetRequirements = true;
+    unmetNutrients.push('Zinc (Zn)');
+
+    zincAccounting = {
+      nutrientName: 'Zinc',
+      chemicalSymbol: 'Zn',
+      demandedKg: znDemanded,
+      suppliedKg: 0,
+      balanceKg: -znDemanded,
+      status: 'deficit',
+      isSatisfied: false,
+      advisory: `Crop has a verified Zinc requirement (${znDemanded} kg ZnSO4 eq.) which is not supplied by this NPK formulation. Zinc Sulfate (heptahydrate 21% Zn or monohydrate 33% Zn) must be applied separately based on soil test diagnosis; do not mix Zinc Sulfate directly with DAP/SSP to avoid insoluble zinc phosphate precipitation.`,
+    };
+  }
+
+  // Calcium Accounting
+  let calciumAccounting: NutrientSupplyDemandItem | undefined = undefined;
+  if (suppliedCa > 0) {
+    calciumAccounting = {
+      nutrientName: 'Calcium',
+      chemicalSymbol: 'Ca',
+      demandedKg: 0,
+      suppliedKg: roundTo(suppliedCa, 1),
+      balanceKg: roundTo(suppliedCa, 1),
+      status: 'surplus',
+      isSatisfied: true,
+      advisory: `SSP supplies ${roundTo(suppliedCa, 1)} kg Calcium (Ca), which promotes soil aggregate structure and pod filling in groundnut.`,
+    };
+  }
+
+  const secondaryNutrientAccounting: SecondaryNutrientAccounting = {
+    sulfur: sulfurAccounting,
+    zinc: zincAccounting,
+    calcium: calciumAccounting,
+    hasUnmetRequirements,
+    unmetNutrients,
+  };
+
+  const isRecommendationComplete = !hasUnmetRequirements;
+  if (!isRecommendationComplete) {
+    warnings.push(
+      `Incomplete Recommendation: The selected ${combinationType} combination does not satisfy the crop's requirements for ${unmetNutrients.join(', ')}. Supplemental soil amendments (e.g. Gypsum, elemental sulphur, or Zinc Sulphate) are required to fulfill the complete agronomic package.`
     );
   }
 
@@ -539,9 +740,14 @@ export function calculateFertilizerProducts(
           'For nodulating legumes, high DAP doses supply excess starter nitrogen that suppresses biological nodule development. SSP + Urea + MOP is preferred.'
         );
       }
+      if (['groundnut', 'soybean', 'onion'].includes(cropReq.cropId)) {
+        suitabilityNotes.push(
+          'Notice: This crop has a high Sulphur requirement for oil/pungency synthesis. DAP contains 0% S; supplemental sulphur must be provided.'
+        );
+      }
     } else if (combinationType === 'SSP_UREA_MOP') {
       if (['groundnut', 'soybean', 'onion', 'chickpea'].includes(cropReq.cropId)) {
-        suitabilityNotes.push('Excellent match: SSP directly satisfies crop sulfur and calcium requirements.');
+        suitabilityNotes.push('Excellent match: SSP directly satisfies crop sulphur and calcium requirements.');
       }
     }
   }
@@ -564,6 +770,7 @@ export function calculateFertilizerProducts(
         phosphorus: roundTo(demandedP, 1),
         potassium: roundTo(demandedK, 1),
         sulfur: demandedS !== undefined ? roundTo(demandedS, 1) : undefined,
+        zinc: demandedZn !== undefined ? roundTo(demandedZn, 1) : undefined,
       },
       suppliedKg: {
         nitrogen: roundTo(suppliedN, 1),
@@ -571,6 +778,7 @@ export function calculateFertilizerProducts(
         potassium: roundTo(suppliedK, 1),
         sulfur: suppliedS > 0 ? roundTo(suppliedS, 1) : undefined,
         calcium: suppliedCa > 0 ? roundTo(suppliedCa, 1) : undefined,
+        zinc: suppliedZn > 0 ? roundTo(suppliedZn, 1) : undefined,
       },
       balanceKg: {
         nitrogen: balanceN,
@@ -580,6 +788,8 @@ export function calculateFertilizerProducts(
       isNutrientImbalanced,
       imbalanceWarnings,
     },
+    secondaryNutrientAccounting,
+    isRecommendationComplete,
     suitabilityForCrop: {
       isSuitable,
       suitabilityNotes,
@@ -591,12 +801,14 @@ export function calculateFertilizerProducts(
 }
 
 // ============================================================================
-// 3. FERTILIZER APPLICATION SCHEDULE
+// 3. FERTILIZER APPLICATION SCHEDULE WITH SCIENTIFIC VERIFICATION
 // ============================================================================
 
 /**
  * Calculates crop-specific split application schedules by distributing
  * calculated fertilizer products across verified phenological growth stages.
+ *
+ * Strict Rule: Does not silently normalize invalid split percentages.
  */
 export function calculateApplicationSchedule(
   cropId: string,
@@ -609,6 +821,7 @@ export function calculateApplicationSchedule(
       cropName: cropReq?.cropName || cropId,
       stages: [],
       totalPercentages: { nitrogen: 0, phosphorus: 0, potassium: 0 },
+      scheduleStatus: 'unavailable',
       isAllocationValid: false,
       allocationWarnings: ['Cannot calculate application schedule without a valid crop requirement and fertilizer plan.'],
       isValid: false,
@@ -629,7 +842,7 @@ export function calculateApplicationSchedule(
     sumK += s.potassiumPercent;
   }
 
-  // Tolerance check (0.5% tolerance for rounding)
+  // Tolerance check (0.5% tolerance for floating rounding)
   let isAllocationValid = true;
   if (cropReq.baselineRdfKgHa.nitrogen > 0 && Math.abs(sumN - 100) > 0.5) {
     allocationWarnings.push(`Nitrogen application splits total ${sumN}% instead of 100%.`);
@@ -757,6 +970,8 @@ export function calculateApplicationSchedule(
     });
   }
 
+  const scheduleStatus = cropReq.applicationScheduleStatus || (cropReq.recommendationStatus === 'provisional' ? 'provisional' : 'verified');
+
   return {
     cropId,
     cropName: cropReq.cropName,
@@ -766,6 +981,7 @@ export function calculateApplicationSchedule(
       phosphorus: sumP,
       potassium: sumK,
     },
+    scheduleStatus,
     isAllocationValid,
     allocationWarnings,
     isValid: true,
@@ -773,12 +989,12 @@ export function calculateApplicationSchedule(
 }
 
 // ============================================================================
-// 4. ORGANIC ALTERNATIVES & BIOFERTILIZERS
+// 4. ORGANIC ALTERNATIVES & BIOFERTILIZERS (EVIDENCE-BASED)
 // ============================================================================
 
 /**
  * Calculates farm-scaled organic manure and biofertilizer recommendations
- * from verified database entries, displaying clear release assumptions.
+ * from verified database entries, displaying clear empirical release assumptions.
  */
 export function calculateOrganicAlternatives(
   cropId: string,
@@ -823,12 +1039,19 @@ export function calculateOrganicAlternatives(
 
     const releaseAssumptions =
       alt.category === 'bulky_organic'
-        ? 'Slow mineralization: Approx. 25-30% N, 60-70% P, and 70-80% K released in the first season; builds lasting soil organic carbon.'
+        ? 'Empirical mineralization range: Approx. 25-30% N, 60-70% P, and 70-80% K released in Year 1 under irrigated conditions (ICAR-IISS Bhopal LTFE research). Builds persistent soil organic carbon and CEC.'
         : alt.category === 'concentrated_organic'
-        ? 'Medium release: High humic acids, enzyme activity, and microbial proliferation within 30-45 days.'
+        ? 'Empirical release: Faster decomposition than raw FYM due to earthworm pre-digestion; active microbial enzymes stimulate root colonization within 30-45 days.'
         : alt.category === 'biofertilizer'
-        ? 'Living microbial cultures that colonize rhizosphere roots, fix atmospheric N, or solubilize native bound phosphorus.'
-        : 'Biological green manure: Rapid mineralization when incorporated at succulent pre-flowering stage.';
+        ? 'Biological activity: Living microbial inoculants that colonize the root zone to fix atmospheric N2 or solubilize native bound phosphates. Non-chemical biological mechanism.'
+        : 'In-situ green manuring: Rapid mineralization upon succulent incorporation at pre-flowering stage (45-50 DAS); returns active biomass and organic nitrogen.';
+
+    const scientificReference =
+      alt.category === 'bulky_organic'
+        ? 'ICAR - Indian Institute of Soil Science (ICAR-IISS), Bhopal: Long-Term Fertilizer Experiments (LTFE) in India (Sammi Reddy et al. 2003)'
+        : alt.category === 'biofertilizer'
+        ? 'Gaur, A.C. (1992). Bulky Organic Manures and Biofertilisers, FDCO, New Delhi; TNAU Agritech Portal (2020)'
+        : 'TNAU Agritech Portal: Crop Production Guide - Organic Farming';
 
     return {
       productName: alt.productName,
@@ -839,11 +1062,14 @@ export function calculateOrganicAlternatives(
       timingAndMethod: alt.timingAndMethod,
       biofertilizerStrain: alt.biofertilizerStrain,
       releaseAssumptions,
+      scientificReference,
+      isProvisional: alt.category === 'green_manure' && cropReq?.recommendationStatus === 'provisional',
     };
   });
 
   const generalOrganicAdvisory: string[] = [
-    'Bulky organic manures (FYM, compost) cannot directly replace chemical fertilizers on a 1:1 kilogram basis in intensive high-yielding cropping.',
+    'Bulky organic manures (FYM, compost) are soil conditioners and biological enhancers, NOT direct 1:1 chemical substitutes in intensive high-yielding cropping.',
+    'First-year nutrient release is partial (approx. 25-30% N, 60-70% P, 70-80% K); remaining nutrients mineralize slowly across 2-3 successive cropping seasons.',
     'Combined Integrated Nutrient Management (INM) - pairing organic manures with split chemical fertilizers - delivers the highest nutrient use efficiency and long-term soil health.',
     'Biofertilizers (Rhizobium, Azotobacter, PSB) are living bacterial cultures and must be stored in cool shade away from chemical pesticides.',
   ];

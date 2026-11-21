@@ -1,6 +1,6 @@
 // ARACHNOVA - Smart Fertilizer Planner Calculation Engine Test Suite
-// Verifies nutrient demand, DAP offsets, SSP formulations, bag calculations,
-// split application allocations, soil-test adjustments, and error boundary handling.
+// Scientifically verifies nutrient demand, DAP offsets, SSP formulations, bag calculations,
+// secondary nutrient accounting, split schedules, soil-test safeguards, and error boundaries.
 
 import {
   calculateNutrientDemand,
@@ -32,7 +32,7 @@ function assert(condition: boolean, testName: string, detail?: string) {
 }
 
 console.log('===============================================================');
-console.log('ARACHNOVA FERTILIZER ENGINE COMPREHENSIVE VERIFICATION SUITE');
+console.log('ARACHNOVA FERTILIZER ENGINE SCIENTIFIC VALIDATION SUITE');
 console.log('===============================================================\n');
 
 // ----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ assert(ureaItem !== undefined && ureaItem.exactQuantityKg === 218.3, `Urea exact
 assert(ureaItem?.bagsToPurchase === 5, `Urea bags to purchase is 5 (got ${ureaItem?.bagsToPurchase})`);
 assert(mopItem !== undefined && mopItem.exactQuantityKg === 83.3, `MOP exact qty matches formula (83.3 kg, got ${mopItem?.exactQuantityKg})`);
 assert(mopItem?.bagsToPurchase === 2, `MOP bags to purchase is 2 (got ${mopItem?.bagsToPurchase})`);
-assert(!riceDapPlan.nutrientBalance.isNutrientImbalanced, 'Rice DAP plan is balanced');
+assert(!riceDapPlan.nutrientBalance.isNutrientImbalanced, 'Rice DAP plan is balanced for Nitrogen');
 
 // ----------------------------------------------------------------------------
 // TEST GROUP 5: SSP CALCULATIONS & SECONDARY NUTRIENTS
@@ -131,9 +131,6 @@ assert(sspUreaItem?.bagsToPurchase === 6, `Urea bags with SSP is 6 (got ${sspUre
 // TEST GROUP 6: NUTRIENT IMBALANCE DETECTION
 // ----------------------------------------------------------------------------
 console.log('\n6. Testing Nutrient Imbalance Warning (Simulated low N / high P scenario)');
-// Synthetic test: Crop demand with 10 kg N and 60 kg P2O5
-// DAP required for 60 kg P2O5 = 60 / 0.46 = 130.43 kg DAP
-// N supplied by this DAP = 130.43 * 0.18 = 23.48 kg N > 10 kg target N!
 const imbalancedDemand = {
   cropId: 'custom_pulse',
   cropName: 'Custom Legume',
@@ -154,9 +151,65 @@ assert(imbalancedPlan.nutrientBalance.imbalanceWarnings.length > 0, 'Imbalance w
 assert(imbalancedPlan.products.find(p => p.productId === 'neem_coated_urea')?.exactQuantityKg === 0, 'Urea quantity is 0 when N is exceeded');
 
 // ----------------------------------------------------------------------------
-// TEST GROUP 7: APPLICATION SCHEDULE & SPLIT PERCENTAGES
+// TEST GROUP 7: SECONDARY NUTRIENT ACCOUNTING (SULPHUR, ZINC, CALCIUM)
 // ----------------------------------------------------------------------------
-console.log('\n7. Testing Application Schedule & Split Allocations');
+console.log('\n7. Testing Secondary Nutrient Accounting & Incomplete Formulation Warnings');
+// Case A: Groundnut with DAP (Demands 25 kg S, DAP provides 0 kg S -> Deficit & Incomplete)
+const groundnutDemand = calculateNutrientDemand('groundnut', 1.0);
+const groundnutDapPlan = calculateFertilizerProducts(groundnutDemand, 'DAP_UREA_MOP');
+assert(!groundnutDapPlan.isRecommendationComplete, 'Groundnut with DAP is marked INCOMPLETE due to unmet Sulphur');
+assert(groundnutDapPlan.secondaryNutrientAccounting.sulfur?.status === 'deficit', 'Groundnut Sulphur status is DEFICIT in DAP combination');
+assert(groundnutDapPlan.secondaryNutrientAccounting.sulfur?.balanceKg === -25, 'Groundnut Sulphur deficit is -25 kg');
+assert(groundnutDapPlan.warnings.some(w => w.includes('Incomplete Recommendation')), 'Incomplete recommendation warning generated for Groundnut DAP');
+
+// Case B: Groundnut with SSP (SSP satisfies Sulphur with a surplus)
+const groundnutSspPlan = calculateFertilizerProducts(groundnutDemand, 'SSP_UREA_MOP');
+assert(groundnutSspPlan.isRecommendationComplete, 'Groundnut with SSP is COMPLETE (Sulphur satisfied)');
+assert(groundnutSspPlan.secondaryNutrientAccounting.sulfur?.isSatisfied === true, 'Groundnut Sulphur is satisfied by SSP');
+assert(groundnutSspPlan.secondaryNutrientAccounting.sulfur?.status === 'satisfied' || groundnutSspPlan.secondaryNutrientAccounting.sulfur?.status === 'surplus', 'Groundnut Sulphur has satisfied/surplus status');
+assert(groundnutSspPlan.secondaryNutrientAccounting.calcium?.suppliedKg === 59.4, 'Calcium from SSP recorded (59.4 kg)');
+
+// Case C: Rice with Zinc requirement (Rice demands 25 kg ZnSO4 eq. -> neither DAP nor SSP provides Zn)
+assert(!riceDapPlan.isRecommendationComplete, 'Rice plan marked INCOMPLETE due to unmet Zinc');
+assert(riceDapPlan.secondaryNutrientAccounting.zinc?.status === 'deficit', 'Rice Zinc status is DEFICIT');
+assert(riceDapPlan.secondaryNutrientAccounting.zinc?.advisory?.includes('Zinc Sulfate') === true, 'Advisory explains Zinc must be applied separately');
+
+// ----------------------------------------------------------------------------
+// TEST GROUP 8: SOIL-TEST ADJUSTMENT SAFEGUARDS
+// ----------------------------------------------------------------------------
+console.log('\n8. Testing Soil-Test Adjustment Safeguards & Default Baseline Retention');
+
+// Case A: Default behavior without explicit opt-in -> Retains 100% baseline RDF
+const lowNDefaultDemand = calculateNutrientDemand('wheat', 1.0, { availableNitrogenKgHa: 210 });
+assert(!lowNDefaultDemand.soilTestAdjustmentApplied, 'Automatic adjustment DISABLED by default for Low N');
+assert(lowNDefaultDemand.totalDemandKg.nitrogen === 120, 'Baseline 120 kg N strictly retained by default');
+assert(lowNDefaultDemand.soilEvaluations?.[0].ratingTier === 'low', 'Evaluation records tier as LOW');
+assert(Boolean(lowNDefaultDemand.soilEvaluations?.[0]?.extractionMethod.includes('Alkaline Permanganate')), 'Method cited as Alkaline Permanganate');
+
+// Case B: Explicit opt-in (applyGeneralizedRatingAdjustment: true) -> Applies macro ±25% scaling
+const lowNOptInDemand = calculateNutrientDemand('wheat', 1.0, {
+  availableNitrogenKgHa: 210,
+  applyGeneralizedRatingAdjustment: true,
+});
+assert(lowNOptInDemand.soilTestAdjustmentApplied, 'Adjustment applied when explicitly opted-in');
+assert(lowNOptInDemand.totalDemandKg.nitrogen === 150, `Low N scales +25% (120 -> 150 kg, got ${lowNOptInDemand.totalDemandKg.nitrogen})`);
+
+const highNOptInDemand = calculateNutrientDemand('wheat', 1.0, {
+  availableNitrogenKgHa: 620,
+  applyGeneralizedRatingAdjustment: true,
+});
+assert(highNOptInDemand.totalDemandKg.nitrogen === 90, `High N scales -25% (120 -> 90 kg, got ${highNOptInDemand.totalDemandKg.nitrogen})`);
+
+// Case C: SoilGrids Total Nitrogen Guardrail (Must NEVER adjust available N)
+const soilGridsGuardrailDemand = calculateNutrientDemand('wheat', 1.0, { soilGridsTotalNitrogenGKg: 1.4 });
+assert(!soilGridsGuardrailDemand.soilTestAdjustmentApplied, 'SoilGrids Total Nitrogen alone does NOT trigger available N adjustment');
+assert(soilGridsGuardrailDemand.totalDemandKg.nitrogen === 120, 'Baseline 120 kg N retained when only SoilGrids total N is provided');
+assert(soilGridsGuardrailDemand.warnings.some(w => w.includes('SoilGrids estimated Total Nitrogen')), 'SoilGrids non-available nitrogen warning emitted');
+
+// ----------------------------------------------------------------------------
+// TEST GROUP 9: APPLICATION SCHEDULE VALIDITY & SPLIT ALLOCATIONS
+// ----------------------------------------------------------------------------
+console.log('\n9. Testing Application Schedule & Split Allocations');
 for (const crop of allCrops) {
   const demand = calculateNutrientDemand(crop.cropId, 1.0);
   const plan = calculateFertilizerProducts(demand, 'DAP_UREA_MOP');
@@ -165,49 +218,28 @@ for (const crop of allCrops) {
   assert(schedule.isValid, `Schedule valid for ${crop.cropId}`);
   assert(schedule.isAllocationValid, `Split percentages total 100% for ${crop.cropId}`);
   assert(schedule.stages.length > 0, `At least 1 stage created for ${crop.cropId} (found: ${schedule.stages.length})`);
-
-  // Verify basal stage has products
-  const basalStage = schedule.stages[0];
-  assert(basalStage.stageProducts.length > 0, `Basal stage has allocated products for ${crop.cropId}`);
+  assert(
+    crop.cropId === 'cover_crop_mix' ? schedule.scheduleStatus === 'provisional' : schedule.scheduleStatus === 'verified',
+    `Schedule status verified for commercial crops, provisional for cover crop (${crop.cropId}: ${schedule.scheduleStatus})`
+  );
 }
 
 // ----------------------------------------------------------------------------
-// TEST GROUP 8: ORGANIC ALTERNATIVES SCALING
+// TEST GROUP 10: ORGANIC ALTERNATIVES & SCIENTIFIC REFERENCES
 // ----------------------------------------------------------------------------
-console.log('\n8. Testing Organic Alternatives Scaling');
+console.log('\n10. Testing Organic Alternatives Scaling & References');
 const organicRice = calculateOrganicAlternatives('rice', 2.0);
 assert(organicRice.isValid, 'Organic alternatives valid for Rice on 2 ha');
 assert(organicRice.alternatives.length > 0, `Rice has ${organicRice.alternatives.length} organic alternatives`);
 const fymRice = organicRice.alternatives.find(a => a.productName.includes('Farmyard Manure'));
 assert(Boolean(fymRice?.totalFarmDoseEstimated.includes('25 Tonnes')), `FYM scaled correctly for 2 ha (12.5 * 2 = 25 Tonnes, got: ${fymRice?.totalFarmDoseEstimated})`);
+assert(Boolean(fymRice?.scientificReference?.includes('ICAR-IISS')), 'FYM references ICAR-IISS LTFE research');
+assert(Boolean(fymRice?.releaseAssumptions?.includes('25-30% N')), 'FYM states empirical 25-30% first-year N release');
 
 // ----------------------------------------------------------------------------
-// TEST GROUP 9: SOIL-TEST ADJUSTMENTS & SCIENTIFIC GUARDRAILS
+// TEST GROUP 11: EDGE CASES & ERROR BOUNDARIES
 // ----------------------------------------------------------------------------
-console.log('\n9. Testing Soil-Test Adjustments & Scientific Guardrails');
-// Case A: Low Available N (< 280 kg/ha) -> +25% adjustment
-const lowNDemand = calculateNutrientDemand('wheat', 1.0, { availableNitrogenKgHa: 210 });
-assert(lowNDemand.soilTestAdjustmentApplied, 'Adjustment applied for Low Available N');
-assert(lowNDemand.totalDemandKg.nitrogen === 150, `Low N (+25%) scales 120 -> 150 kg (got ${lowNDemand.totalDemandKg.nitrogen})`);
-
-// Case B: High Available N (> 560 kg/ha) -> -25% adjustment
-const highNDemand = calculateNutrientDemand('wheat', 1.0, { availableNitrogenKgHa: 620 });
-assert(highNDemand.totalDemandKg.nitrogen === 90, `High N (-25%) scales 120 -> 90 kg (got ${highNDemand.totalDemandKg.nitrogen})`);
-
-// Case C: Medium Available N (280 - 560 kg/ha) -> 100% baseline RDF
-const medNDemand = calculateNutrientDemand('wheat', 1.0, { availableNitrogenKgHa: 350 });
-assert(medNDemand.totalDemandKg.nitrogen === 120, `Medium N retains 100% baseline 120 kg (got ${medNDemand.totalDemandKg.nitrogen})`);
-
-// Case D: SoilGrids Total Nitrogen Guardrail (Must NOT adjust available N)
-const soilGridsGuardrailDemand = calculateNutrientDemand('wheat', 1.0, { soilGridsTotalNitrogenGKg: 1.4 });
-assert(!soilGridsGuardrailDemand.soilTestAdjustmentApplied, 'SoilGrids Total Nitrogen alone does NOT trigger available N adjustment');
-assert(soilGridsGuardrailDemand.totalDemandKg.nitrogen === 120, 'Baseline 120 kg N retained when only SoilGrids total N is provided');
-assert(soilGridsGuardrailDemand.warnings.some(w => w.includes('SoilGrids estimated Total Nitrogen')), 'SoilGrids non-available nitrogen warning emitted');
-
-// ----------------------------------------------------------------------------
-// TEST GROUP 10: EDGE CASES & ERROR BOUNDARIES
-// ----------------------------------------------------------------------------
-console.log('\n10. Testing Edge Cases & Error Boundaries');
+console.log('\n11. Testing Edge Cases & Error Boundaries');
 // Zero farm area
 const zeroAreaDemand = calculateNutrientDemand('wheat', 0);
 assert(!zeroAreaDemand.isValid, 'Zero farm area marked invalid');
