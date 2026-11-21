@@ -55,7 +55,7 @@ export interface FertilizerPlannerProps {
 
 export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
   initialCropId = 'wheat',
-  initialAreaHectares = 2.0,
+  initialAreaHectares,
   farmName,
   onCropChange,
   availableCropIds,
@@ -67,22 +67,30 @@ export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
   // Active state
   const [selectedCropId, setSelectedCropId] = useState<string>(initialCropId);
   const [areaUnit, setAreaUnit] = useState<'ha' | 'acres'>('ha');
-  const [areaValue, setAreaValue] = useState<number>(initialAreaHectares > 0 ? initialAreaHectares : 0);
+  const [areaValue, setAreaValue] = useState<number>(() => {
+    if (typeof initialAreaHectares === 'number' && Number.isFinite(initialAreaHectares) && initialAreaHectares > 0) {
+      return initialAreaHectares;
+    }
+    return 0;
+  });
   const [combinationType, setCombinationType] = useState<FertilizerCombinationType>('DAP_UREA_MOP');
 
   // Synchronize selected crop when initialCropId prop changes from parent
   useEffect(() => {
-    if (initialCropId) {
+    if (initialCropId && initialCropId !== selectedCropId) {
       setSelectedCropId(initialCropId);
     }
   }, [initialCropId]);
 
   // Synchronize area value when initialAreaHectares prop changes from active farm
+  // When active farm area is zero, invalid or unavailable, immediately clear to 0
   useEffect(() => {
-    if (typeof initialAreaHectares === 'number' && initialAreaHectares > 0) {
+    if (typeof initialAreaHectares === 'number' && Number.isFinite(initialAreaHectares) && initialAreaHectares > 0) {
       setAreaValue(areaUnit === 'acres' ? roundTo(hectaresToAcres(initialAreaHectares), 1) : initialAreaHectares);
+    } else {
+      setAreaValue(0);
     }
-  }, [initialAreaHectares, areaUnit]);
+  }, [initialAreaHectares]);
 
   // Soil-test lab data state
   const [showSoilTestPanel, setShowSoilTestPanel] = useState<boolean>(false);
@@ -340,19 +348,25 @@ export const FertilizerPlanner: React.FC<FertilizerPlannerProps> = ({
         <NutrientBalanceAlert plan={fertilizerPlan} />
 
         {/* FERTILIZER PRODUCTS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {fertilizerPlan.products.map(prod => {
-            const spec = getFertilizerProductById(prod.productId);
-            return (
-              <FertilizerProductCard
-                key={prod.productId}
-                product={prod}
-                precautions={spec?.precautions}
-                applicationTips={spec?.applicationTips}
-              />
-            );
-          })}
-        </div>
+        {effectiveAreaHectares <= 0 ? (
+          <div className="p-6 bg-white rounded-2xl border border-[#E0DCD3] text-center text-xs text-[#5C645E]">
+            No commercial fertilizer quantities to display. Please specify a field area greater than 0 ha above.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {fertilizerPlan.products.map(prod => {
+              const spec = getFertilizerProductById(prod.productId);
+              return (
+                <FertilizerProductCard
+                  key={prod.productId}
+                  product={prod}
+                  precautions={spec?.precautions}
+                  applicationTips={spec?.applicationTips}
+                />
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* SECTION 3: PHENOLOGICAL APPLICATION SCHEDULE */}

@@ -11,6 +11,27 @@ interface OrganicAlternativesProps {
 export const OrganicAlternatives: React.FC<OrganicAlternativesProps> = ({ organicData }) => {
   const { alternatives, areaHectares, areaAcres, generalOrganicAdvisory, cropName } = organicData;
 
+  if (!organicData.isValid || areaHectares <= 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E0DCD3] p-5 md:p-6 shadow-sm">
+        <div className="flex items-center gap-2.5 text-[#5C645E]">
+          <Leaf className="w-5 h-5 text-[#2E7D32]" />
+          <div>
+            <h3 className="text-base font-semibold text-[#1E2420]">
+              Organic Alternatives &amp; Biofertilizer Practices
+            </h3>
+            <p className="text-xs text-[#5C645E]">
+              Biological soil conditioners, manures and inoculants
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-[#5C645E] mt-3 pt-3 border-t border-[#EAE6DF]">
+          Please specify a valid field area greater than 0 ha above to scale organic manure and biofertilizer quantities.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-[#E0DCD3] p-5 md:p-6 shadow-sm">
       {/* Header */}

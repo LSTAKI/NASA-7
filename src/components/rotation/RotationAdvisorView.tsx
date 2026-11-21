@@ -93,6 +93,13 @@ export function RotationAdvisorView() {
 
   const activePrecedingCropId = previousCropsInput[0] || 'maize';
 
+  // Check if preceding crop is an actual recorded farm crop or an unconfirmed default selection
+  const isPrecedingCropConfirmed = Boolean(
+    activeFarm?.currentCrops &&
+    activeFarm.currentCrops.length > 0 &&
+    activeFarm.currentCrops.includes(activePrecedingCropId)
+  );
+
   // Counts for categories
   const vegetableCount = rankedCrops.filter(c => getCropVisualMetadata(c.crop.id).category === 'vegetable').length;
   const legumeCount = rankedCrops.filter(c => getCropVisualMetadata(c.crop.id).category === 'legume').length;
@@ -124,6 +131,7 @@ export function RotationAdvisorView() {
                   value={activePrecedingCropId}
                   onChange={e => setPreviousCropsInput([e.target.value])}
                   className="bg-transparent text-xs text-[#191c1f] font-semibold focus:outline-none cursor-pointer"
+                  aria-label="Select preceding crop"
                 >
                   {CROP_DATABASE.map(c => {
                     const meta = getCropVisualMetadata(c.id);
@@ -134,6 +142,14 @@ export function RotationAdvisorView() {
                     );
                   })}
                 </select>
+                {!isPrecedingCropConfirmed && (
+                  <span
+                    className="text-[10px] text-[#D96B27] bg-[#FFF7ED] px-1.5 py-0.5 rounded font-semibold border border-[#FED7AA]"
+                    title="No previous crop recorded in farm records; Maize is selected as an unconfirmed default baseline. You can switch to your actual previous crop."
+                  >
+                    Default Selection
+                  </span>
+                )}
               </div>
             </div>
 
@@ -360,6 +376,7 @@ export function RotationAdvisorView() {
               farmAreaHectares={activeFarm?.areaHectares || 0}
               farmName={activeFarm?.name}
               precedingCropId={activePrecedingCropId}
+              isPrecedingCropConfirmed={isPrecedingCropConfirmed}
               defaultOpenFertilizer={openTopPlan && idx === 0}
             />
           ))

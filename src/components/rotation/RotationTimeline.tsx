@@ -4,10 +4,11 @@ import React from 'react';
 import { CROP_DATABASE } from '@/data/crops/crop-database';
 import { getFertilizerRequirementByCropId } from '@/data/fertilizer/fertilizer-database';
 import { CropVisualIcon, getCropVisualMetadata } from '@/components/rotation/CropVisualIcon';
-import { FlaskConical, ArrowRight, ArrowDown, CheckCircle2, AlertCircle, RefreshCw, Layers } from 'lucide-react';
+import { FlaskConical, CheckCircle2, RefreshCw, Layers } from 'lucide-react';
 
 export interface RotationTimelineProps {
   precedingCropId: string;
+  isPrecedingCropConfirmed?: boolean;
   currentCropId: string;
   followingCropId?: string;
   activeCropId: string;
@@ -16,7 +17,10 @@ export interface RotationTimelineProps {
 }
 
 /**
- * Returns a complementary subsequent sequence crop based on crop family and nitrogen dynamics
+ * Returns an indicative complementary subsequent sequence crop based on simplified crop-family
+ * and nitrogen dynamics heuristics.
+ *
+ * NOTE: This is a provisional heuristic guideline and NOT an independently validated agronomic recommendation.
  */
 export function getComplementarySequenceCropId(currentCropId: string): string {
   const current = CROP_DATABASE.find(c => c.id === currentCropId);
@@ -61,6 +65,7 @@ export function getComplementarySequenceCropId(currentCropId: string): string {
 
 export const RotationTimeline: React.FC<RotationTimelineProps> = ({
   precedingCropId,
+  isPrecedingCropConfirmed = false,
   currentCropId,
   followingCropId,
   activeCropId,
@@ -72,10 +77,12 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
   const sequence = [
     {
       id: precedingCropId,
-      stepLabel: 'Previous Harvest',
-      phaseBadge: 'Preceding Crop',
+      stepLabel: isPrecedingCropConfirmed ? 'Previous Harvest' : 'Preceding Crop (Selected)',
+      phaseBadge: isPrecedingCropConfirmed ? 'Confirmed Farm Harvest' : 'Default Selection (Unconfirmed)',
       isRecommended: false,
-      ecologicalRole: 'Residual soil horizon baseline',
+      ecologicalRole: isPrecedingCropConfirmed
+        ? 'Confirmed previous field harvest baseline'
+        : 'Baseline reference crop. Select your actual previous crop in the configuration panel above.',
     },
     {
       id: currentCropId,
@@ -87,9 +94,9 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
     {
       id: effectiveFollowingId,
       stepLabel: 'Following Rotation',
-      phaseBadge: 'Ecological Break Partner',
+      phaseBadge: 'Suggested Next Crop (Provisional)',
       isRecommended: false,
-      ecologicalRole: 'Restorative sequence partner',
+      ecologicalRole: 'Indicative heuristic suggestion based on simplified crop-family alternation and nitrogen dynamics. Not independently validated.',
     },
   ];
 
@@ -108,8 +115,8 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
         </div>
       </div>
 
-      {/* Responsive Sequence Flow */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 relative">
+      {/* Accessible Interactive Sequence Flow with Button Semantics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 relative" role="region" aria-label="Crop Rotation Sequence">
         {sequence.map((step, idx) => {
           const cropObj = CROP_DATABASE.find(c => c.id === step.id);
           const fertReq = getFertilizerRequirementByCropId(step.id);
@@ -117,10 +124,13 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
           const isActive = activeCropId === step.id;
 
           return (
-            <div
+            <button
+              type="button"
               key={`${step.id}-${idx}`}
               onClick={() => onSelectCrop(step.id)}
-              className={`relative rounded-xl p-3.5 border transition-all cursor-pointer flex flex-col justify-between ${
+              aria-pressed={isActive}
+              aria-label={`View fertilizer plan for ${cropObj?.name || step.id} (${step.stepLabel} - ${step.phaseBadge})`}
+              className={`w-full text-left relative rounded-xl p-3.5 border transition-all cursor-pointer flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:ring-offset-2 ${
                 isActive
                   ? 'bg-[#EAF3EE] border-[#2E7D32] ring-2 ring-[#2E7D32]/20 shadow-xs'
                   : 'bg-[#F9F8F5] border-[#E0DCD3] hover:border-[#528C70] hover:bg-white'
@@ -135,6 +145,10 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
                   {step.isRecommended ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2E7D32] text-white">
                       Recommended
+                    </span>
+                  ) : step.phaseBadge.includes('Provisional') ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FFFDF5] text-[#854D0E] border border-[#FDE68A]">
+                      {step.phaseBadge}
                     </span>
                   ) : (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EAE6DF] text-[#404642]">
@@ -156,7 +170,7 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
                   </div>
                 </div>
 
-                {/* Ecological Trait */}
+                {/* Ecological Trait & Advisory */}
                 <p className="text-[11px] text-[#5C645E] mt-1 leading-snug">
                   {step.ecologicalRole}
                 </p>
@@ -171,7 +185,7 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
                       Active Fertilizer Plan
                     </span>
                   ) : (
-                    <span className="text-[#528C70] flex items-center gap-1 group-hover:text-[#2E7D32]">
+                    <span className="text-[#528C70] flex items-center gap-1">
                       <FlaskConical className="w-3.5 h-3.5" />
                       View Fertilizer Plan
                     </span>
@@ -188,17 +202,22 @@ export const RotationTimeline: React.FC<RotationTimelineProps> = ({
                   </span>
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
 
-      {/* Advisory footnote */}
-      <div className="text-[11px] text-[#5C645E] flex items-center gap-1.5 pt-1">
-        <RefreshCw className="w-3.5 h-3.5 text-[#528C70] shrink-0" />
-        <span>
-          Each crop in this multi-season rotation maintains its own distinct nutrient demand, fertilizer formulation, and phenological schedule scaled to {farmAreaHectares > 0 ? `${farmAreaHectares} ha` : 'your registered area'}.
-        </span>
+      {/* Advisory footnote & provisional disclosure */}
+      <div className="text-[11px] text-[#5C645E] space-y-1.5 pt-1">
+        <div className="flex items-center gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5 text-[#528C70] shrink-0" />
+          <span>
+            Each crop in this multi-season rotation maintains its own distinct nutrient demand, fertilizer formulation, and phenological schedule scaled to {farmAreaHectares > 0 ? `${farmAreaHectares} ha` : 'your field area'}.
+          </span>
+        </div>
+        <p className="text-[10.5px] text-[#8A928C] leading-relaxed">
+          * <strong className="text-[#5C645E]">Agronomic Notice:</strong> &ldquo;Suggested Next Crop (Provisional)&rdquo; is an indicative sequence suggestion derived from simplified botanical family alternation and biological nitrogen-balance heuristics. It is provisional and has not been independently validated as a certified field-specific rotation plan.
+        </p>
       </div>
     </div>
   );

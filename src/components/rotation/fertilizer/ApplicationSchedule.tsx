@@ -9,6 +9,27 @@ interface ApplicationScheduleProps {
 }
 
 export const ApplicationSchedule: React.FC<ApplicationScheduleProps> = ({ schedule }) => {
+  if (!schedule.isValid) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E0DCD3] p-5 md:p-6 shadow-sm">
+        <div className="flex items-center gap-2.5 text-[#5C645E]">
+          <Calendar className="w-5 h-5 text-[#528C70]" />
+          <div>
+            <h3 className="text-base font-semibold text-[#1E2420]">
+              Phenological Application Schedule
+            </h3>
+            <p className="text-xs text-[#5C645E]">
+              Split application timing tailored to crop growth stages
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-[#5C645E] mt-3 pt-3 border-t border-[#EAE6DF]">
+          Please specify a valid field area greater than 0 ha above to view stage-wise product quantities.
+        </p>
+      </div>
+    );
+  }
+
   const { stages, scheduleStatus, isAllocationValid, allocationWarnings } = schedule;
 
   return (

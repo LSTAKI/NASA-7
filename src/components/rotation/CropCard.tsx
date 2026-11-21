@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CropRotationScore } from '@/types';
 import { CropVisualIcon, getCropVisualMetadata } from '@/components/rotation/CropVisualIcon';
 import { Badge } from '@/components/ui/Badge';
@@ -24,6 +24,7 @@ export interface CropCardProps {
   farmAreaHectares: number;
   farmName?: string;
   precedingCropId: string;
+  isPrecedingCropConfirmed?: boolean;
   defaultOpenFertilizer?: boolean;
 }
 
@@ -35,10 +36,16 @@ export const CropCard: React.FC<CropCardProps> = ({
   farmAreaHectares,
   farmName,
   precedingCropId,
+  isPrecedingCropConfirmed = false,
   defaultOpenFertilizer = false,
 }) => {
   const [isFertilizerOpen, setIsFertilizerOpen] = useState<boolean>(defaultOpenFertilizer);
   const [activeFertilizerCropId, setActiveFertilizerCropId] = useState<string>(item.crop.id);
+
+  // Synchronize active fertilizer crop when item crop changes
+  useEffect(() => {
+    setActiveFertilizerCropId(item.crop.id);
+  }, [item.crop.id]);
 
   const score = item.overallScore;
   const meta = getCropVisualMetadata(item.crop.id);
@@ -62,10 +69,20 @@ export const CropCard: React.FC<CropCardProps> = ({
     >
       {/* 1. MAIN CARD BANNER */}
       <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Left Side: Identity & Attributes */}
+        {/* Left Side: Identity & Attributes with Keyboard Accessibility */}
         <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={isExpanded}
+          aria-label={`${item.crop.name} details, rank ${rank}, suitability score ${score} out of 100`}
           onClick={onToggleExpand}
-          className="flex items-start gap-4 cursor-pointer flex-1"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onToggleExpand();
+            }
+          }}
+          className="flex items-start gap-4 cursor-pointer flex-1 focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:ring-offset-2 rounded-xl p-1"
         >
           {/* Visual Crop Icon with Rank Badge */}
           <div className="relative shrink-0">
@@ -142,7 +159,9 @@ export const CropCard: React.FC<CropCardProps> = ({
               e.stopPropagation();
               setIsFertilizerOpen(prev => !prev);
             }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            aria-expanded={isFertilizerOpen}
+            aria-label={`${isFertilizerOpen ? 'Hide' : 'Open'} Smart Fertilizer Plan for ${item.crop.name}`}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#2E7D32] focus:ring-offset-2 ${
               isFertilizerOpen
                 ? 'bg-[#2E7D32] text-white shadow-xs ring-2 ring-[#2E7D32]/20'
                 : 'bg-[#EAF3EE] text-[#2E7D32] hover:bg-[#d8ebd2] border border-[#2E7D32]/30'
@@ -158,8 +177,9 @@ export const CropCard: React.FC<CropCardProps> = ({
           <button
             type="button"
             onClick={onToggleExpand}
-            className="p-2 rounded-xl text-[#5a626a] hover:bg-[#f4f5f1] transition-colors"
-            aria-label="Toggle agronomic details"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? `Hide agronomic profile for ${item.crop.name}` : `Show agronomic profile for ${item.crop.name}`}
+            className="p-2 rounded-xl text-[#5a626a] hover:bg-[#f4f5f1] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2E7D32]"
             title={isExpanded ? 'Hide agronomic profile' : 'Show agronomic profile'}
           >
             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
@@ -297,9 +317,10 @@ export const CropCard: React.FC<CropCardProps> = ({
       {/* 3. INTEGRATED EXPANDABLE SMART FERTILIZER PLAN SECTION */}
       {isFertilizerOpen && (
         <div className="p-4 md:p-6 border-t-2 border-[#2E7D32]/30 bg-[#FBFBF8] space-y-6">
-          {/* Multi-Season Rotation Sequence Flow */}
+          {/* Multi-Season Rotation Sequence Flow with Accessibility */}
           <RotationTimeline
             precedingCropId={precedingCropId}
+            isPrecedingCropConfirmed={isPrecedingCropConfirmed}
             currentCropId={item.crop.id}
             activeCropId={activeFertilizerCropId}
             onSelectCrop={handleTimelineCropSelect}
