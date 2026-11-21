@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { NutrientDemandResult } from '@/types/fertilizer';
-import { FlaskConical, Scale, Info, Sparkles } from 'lucide-react';
+import { FlaskConical, Scale, Info, Sparkles, AlertCircle } from 'lucide-react';
 
 interface NutrientDemandCardProps {
   nutrientDemand: NutrientDemandResult;
@@ -13,6 +13,19 @@ export const NutrientDemandCard: React.FC<NutrientDemandCardProps> = ({
   nutrientDemand,
   areaUnit = 'ha',
 }) => {
+  if (!nutrientDemand.isValid) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#D96B27]/40 p-5 md:p-6 shadow-xs">
+        <div className="flex items-center gap-2.5 text-[#D96B27]">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <h3 className="text-base font-bold">Field Area Required</h3>
+        </div>
+        <p className="text-xs text-[#5C645E] mt-2 leading-relaxed">
+          {nutrientDemand.errorMessage || 'Please specify a valid field area greater than 0 ha to calculate nutrient requirements.'}
+        </p>
+      </div>
+    );
+  }
   const { totalDemandKg, baselineRdfKgHa, areaHectares, areaAcres } = nutrientDemand;
 
   const displayAreaText =
